@@ -2,7 +2,7 @@
 
 用 Rust 编写的多 Provider torrent 搜索 CLI，同时提供可复用的 library。支持并发搜索、BTIH infohash 去重、tracker 合并，以及适合脚本和 agent 调用的 JSON 输出。
 
-当前版本为 **0.1.0 MVP**：内置 Nyaa 和 Knaben，可配置 Torznab 与 RSS。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
+当前版本为 **0.1.0 MVP**：内置 Nyaa、Knaben 和 Sukebei（Nyaa NSFW），可配置 Torznab 与 RSS。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
 
 ## 安装与快速开始
 
@@ -28,7 +28,7 @@ cargo build --release --locked
 ## 常用命令
 
 ```bash
-# 默认查询全部已配置的源，按 seeders 降序显示前 20 条
+# 默认查询参与默认搜索的源，按 seeders 降序显示前 20 条
 magnet search "ubuntu"
 
 # 指定源；支持逗号分隔或重复 --source
@@ -52,7 +52,7 @@ magnet providers --json
 magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 ```
 
-`resolve` 接受 40 位十六进制或 32 位 base32 BTIH，可重复传入 `--tracker URL`。它只校验 hash 并构造 magnet，不查询 DHT、不解析详情页，也不获取 torrent 元数据。`get --json` 和 `resolve --json` 输出单个对象；`providers --json` 输出包含 `name`、`kind` 的数组。
+`resolve` 接受 40 位十六进制或 32 位 base32 BTIH，可重复传入 `--tracker URL`。它只校验 hash 并构造 magnet，不查询 DHT、不解析详情页，也不获取 torrent 元数据。`get --json` 和 `resolve --json` 输出单个对象；`providers --json` 输出包含 `name`、`kind`、`default_search` 的数组。
 
 使用 `magnet --help` 或 `magnet search --help` 查看命令帮助。
 
@@ -61,7 +61,7 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
 | `QUERY` | 必填 | 非空搜索词；含空格时加引号 |
-| `--source NAME` | 全部已配置源 | 按 Provider 的 `name` 选择，未知名称返回退出码 3 |
+| `--source NAME` | `default_search = true` 的源 | 按 Provider 的 `name` 选择，未知名称返回退出码 3 |
 | `--json` | 关闭 | 输出 JSON 数组 |
 | `--jsonl` | 关闭 | 每行一个 JSON 对象，在聚合完成后输出 |
 | `--magnet` | 关闭 | 每行一个 magnet，排除无法构造 magnet 的结果 |
@@ -87,7 +87,7 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 
 ## 配置 Provider
 
-没有指定配置时，默认并发查询 Nyaa RSS 和 Knaben JSON。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
+没有指定配置时，默认并发查询 Nyaa RSS 和 Knaben JSON；内置 Sukebei 通过 `--source sukebei` 显式选择。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
 
 从 [config.example.toml](config.example.toml) 开始：
 
@@ -102,9 +102,29 @@ magnet --config config.toml search "ubuntu" --json
 | `kind` | 请求方式 | 搜索行为 |
 | --- | --- | --- |
 | `nyaa` | HTTP GET RSS | 添加 `page=rss` 和搜索参数 `q` |
+| `sukebei` | HTTP GET RSS | 使用 Nyaa RSS 协议，添加 `page=rss` 和 `q` |
 | `knaben` | HTTP POST JSON | 向配置的 API URL 提交标题搜索，单次请求 150 条 |
 | `torznab` | HTTP GET RSS/XML | 添加 `t=search`、`q`、`extended=1`，可带 API key |
 | `rss` | HTTP GET RSS | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
+
+### Sukebei：Nyaa NSFW
+
+```bash
+magnet search "关键词" --source sukebei --json
+magnet search "关键词" --source nyaa,sukebei --jsonl
+```
+
+Sukebei 使用 `https://sukebei.nyaa.si/`。自定义配置可加入以下条目：
+
+```toml
+[[providers]]
+name = "sukebei"
+kind = "sukebei"
+url = "https://sukebei.nyaa.si/"
+default_search = false
+```
+
+所有 Provider 都支持可选字段 `default_search`（省略时为 `true`）。设为 `false` 时仍会出现在 `providers` 列表中，但仅在 `--source` 显式选择时参与搜索。内置 Sukebei 和示例配置将其设为 `false`；改为 `true` 可加入默认聚合搜索。若没有可用于默认搜索的源，须传入 `--source`，否则返回 3。
 
 ### Torznab：Jackett / Prowlarr
 
@@ -255,7 +275,7 @@ src/
 ├── lib.rs              # library 模块导出
 └── providers/
     ├── mod.rs          # Provider trait、配置和 HTTP 请求封装
-    ├── feeds.rs        # Nyaa / Torznab / RSS
+    ├── feeds.rs        # Nyaa / Sukebei / Torznab / RSS
     └── knaben.rs       # Knaben JSON API
 ```
 

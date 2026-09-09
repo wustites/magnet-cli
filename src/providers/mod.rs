@@ -14,6 +14,7 @@ use url::Url;
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Nyaa,
+    Sukebei,
     Knaben,
     Torznab,
     Rss,
@@ -26,7 +27,13 @@ pub struct ProviderConfig {
     pub kind: Kind,
     pub url: String,
     pub api_key_env: Option<String>,
+    #[serde(default = "default_search")]
+    pub default_search: bool,
 }
+fn default_search() -> bool {
+    true
+}
+
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
@@ -46,12 +53,21 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 kind: Kind::Nyaa,
                 url: "https://nyaa.si/".into(),
                 api_key_env: None,
+                default_search: true,
             },
             ProviderConfig {
                 name: "knaben".into(),
                 kind: Kind::Knaben,
                 url: "https://api.knaben.org/v1".into(),
                 api_key_env: None,
+                default_search: true,
+            },
+            ProviderConfig {
+                name: "sukebei".into(),
+                kind: Kind::Sukebei,
+                url: "https://sukebei.nyaa.si/".into(),
+                api_key_env: None,
+                default_search: false,
             },
         ]
     };

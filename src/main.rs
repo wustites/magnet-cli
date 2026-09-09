@@ -98,7 +98,7 @@ async fn run(cli: Cli) -> Result<u8> {
             };
             let rows: Vec<_> = configs
                 .iter()
-                .map(|c| serde_json::json!({"name": c.name, "kind": c.kind}))
+                .map(|c| serde_json::json!({"name": c.name, "kind": c.kind, "default_search": c.default_search}))
                 .collect();
             if json {
                 serde_json::to_writer(&mut out, &rows)?;
@@ -134,7 +134,16 @@ async fn run(cli: Cli) -> Result<u8> {
                     return invalid(&format!("unknown source: {source}"));
                 }
             }
-            configs.retain(|c| args.source.is_empty() || args.source.contains(&c.name));
+            configs.retain(|c| {
+                if args.source.is_empty() {
+                    c.default_search
+                } else {
+                    args.source.contains(&c.name)
+                }
+            });
+            if configs.is_empty() {
+                return invalid("no default search providers; select one with --source");
+            }
             let timeout = Duration::from_secs(args.timeout);
             let client = reqwest::Client::builder()
                 .timeout(timeout)

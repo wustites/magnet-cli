@@ -23,3 +23,10 @@ url = "https://api.knaben.org/v1"
 # name = "linux"
 # kind = "rss"
 # url = "https://example.org/torrents.rss"
+
+# Sukebei（Nyaa NSFW），通过 --source sukebei 显式选择。
+[[providers]]
+name = "sukebei"
+kind = "sukebei"
+url = "https://sukebei.nyaa.si/"
+default_search = false

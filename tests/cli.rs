@@ -207,3 +207,75 @@ fn transport_failure_uses_exit_four_and_jsonl_stays_empty() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stdout.is_empty());
 }
+
+#[test]
+fn sukebei_is_selectable_and_uses_nyaa_rss_protocol() {
+    let hash = "b".repeat(40);
+    let (url, handle) = server(
+        format!(
+            r#"<rss xmlns:nyaa="https://sukebei.nyaa.si/xmlns/nyaa"><channel><item><title>Fixture</title><nyaa:infoHash>{hash}</nyaa:infoHash><nyaa:seeders>3</nyaa:seeders></item></channel></rss>"#
+        ),
+        "q=fixture&page=rss",
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!(
+            "[[providers]]\nname='sukebei'\nkind='sukebei'\nurl='{url}'\ndefault_search=false\n"
+        ),
+    )
+    .unwrap();
+    let default = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "fixture",
+            "--json",
+        ],
+    );
+    assert_eq!(default.status.code(), Some(3));
+    let output = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "fixture",
+            "--source",
+            "sukebei",
+            "--json",
+        ],
+    );
+    handle.join().unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(rows[0]["sources"], serde_json::json!(["sukebei"]));
+    assert_eq!(rows[0]["info_hash"], hash);
+    assert!(rows[0]["magnet"].as_str().unwrap().starts_with("magnet:?"));
+}
+
+#[test]
+fn builtin_sukebei_is_listed_but_opt_in() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = run(dir.path(), &["providers", "--json"]);
+    assert_eq!(output.status.code(), Some(0));
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let rows = rows.as_array().unwrap();
+    let sukebei = rows.iter().find(|row| row["name"] == "sukebei").unwrap();
+    assert_eq!(sukebei["kind"], "sukebei");
+    assert_eq!(sukebei["default_search"], false);
+    assert_eq!(
+        rows.iter()
+            .filter(|row| row["default_search"] == true)
+            .count(),
+        2
+    );
+}

@@ -18,7 +18,7 @@ pub async fn search(provider: &HttpProvider, query: &str) -> Result<Vec<Torrent>
         url.query_pairs_mut().extend_pairs(retained);
         let mut pairs = url.query_pairs_mut();
         pairs.append_pair("q", query);
-        if matches!(config.kind, Kind::Nyaa) {
+        if matches!(config.kind, Kind::Nyaa | Kind::Sukebei) {
             pairs.append_pair("page", "rss");
         } else {
             pairs.append_pair("t", "search");
