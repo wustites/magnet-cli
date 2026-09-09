@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 description = "Concurrent torrent search and magnet resolver"
 license = "MIT"
+repository = "https://github.com/wustites/magnet-cli"
+readme = "README.md"
+keywords = ["torrent", "magnet", "bittorrent", "cli", "search"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "magnet"

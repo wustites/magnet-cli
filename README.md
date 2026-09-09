@@ -1,12 +1,14 @@
 # magnet
 
-用 Rust 编写的多 Provider torrent 搜索 CLI，同时提供可复用的 library。支持并发搜索、BTIH infohash 去重、tracker 合并，以及适合脚本和 agent 调用的 JSON 输出。
+[中文文档](README_CN.md)
 
-0.1.0 已发布到 [crates.io](https://crates.io/crates/magnet-cli)：内置 Nyaa、Knaben 和 Sukebei（Nyaa NSFW），可配置 Torznab 与 RSS。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
+A multi-provider torrent search CLI written in Rust, with a reusable library. Supports concurrent search, BTIH infohash dedup, tracker merging, and JSON output suited for scripts and agents.
 
-## 安装与快速开始
+0.1.0 is published on [crates.io](https://crates.io/crates/magnet-cli): built-in Nyaa, Knaben, and Sukebei (Nyaa NSFW), plus configurable Torznab and RSS. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
 
-从 crates.io 安装（命令名是 `magnet`）：
+## Install & Quick Start
+
+Install from crates.io (the command is `magnet`):
 
 ```bash
 cargo install magnet-cli --locked
@@ -14,7 +16,7 @@ magnet --version
 magnet search "ubuntu" --json
 ```
 
-也可以从源码安装：
+Or install from source:
 
 ```bash
 git clone https://github.com/wustites/magnet-cli.git
@@ -22,80 +24,80 @@ cd magnet-cli
 cargo install --path . --locked
 ```
 
-安装后的命令名是 `magnet`。如果 shell 找不到命令，请确认 Cargo 的 bin 目录在 `PATH` 中（默认通常为 `~/.cargo/bin`）。
+The installed command is `magnet`. If your shell can't find it, make sure Cargo's bin directory is on `PATH` (usually `~/.cargo/bin`).
 
-也可以只构建，在仓库内直接运行：
+Or just build and run inside the repo:
 
 ```bash
 cargo build --release --locked
 ./target/release/magnet search "ubuntu"
 ```
 
-## 常用命令
+## Common Commands
 
 ```bash
-# 默认查询参与默认搜索的源，按 seeders 降序显示前 20 条
+# Query default-search sources, top 20 by seeders descending
 magnet search "ubuntu"
 
-# 指定源；支持逗号分隔或重复 --source
+# Pick sources; comma-separated or repeated --source
 magnet search "ubuntu" --source knaben --json
 magnet search "ubuntu" --source nyaa,knaben --jsonl
 
-# 每行一个 magnet，适合传给脚本
+# One magnet per line, good for piping into scripts
 magnet search "ubuntu" --magnet
 
-# 过滤、排序与结果数量
+# Filtering, sorting, result count
 magnet search "ubuntu" --min-seeds 10 --min-size 1G --max-size 10G --sort seeds --limit 20
 
-# 读取上一次搜索的结果，ID 从 1 开始
+# Read back the previous search; IDs start at 1
 magnet get 1
 magnet get 1 --json
 
-# 查看已配置的 Provider，不发起搜索请求
+# List configured providers without searching
 magnet providers --json
 
-# 从 infohash 本地构造 magnet；全零 hash 仅用于演示
+# Build a magnet from an infohash locally; the all-zero hash is demo-only
 magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 ```
 
-`resolve` 接受 40 位十六进制或 32 位 base32 BTIH，可重复传入 `--tracker URL`。它只校验 hash 并构造 magnet，不查询 DHT、不解析详情页，也不获取 torrent 元数据。`get --json` 和 `resolve --json` 输出单个对象；`providers --json` 输出包含 `name`、`kind`、`default_search` 的数组。
+`resolve` accepts a 40-char hex or 32-char base32 BTIH, plus repeatable `--tracker URL`. It only validates the hash and constructs a magnet: no DHT lookup, no detail-page fetch, no torrent metadata. `get --json` and `resolve --json` print a single object; `providers --json` prints an array with `name`, `kind`, `default_search`.
 
-使用 `magnet --help` 或 `magnet search --help` 查看命令帮助。
+See `magnet --help` or `magnet search --help` for full command help.
 
-### 搜索参数
+### Search Options
 
-| 参数 | 默认值 | 说明 |
+| Option | Default | Description |
 | --- | --- | --- |
-| `QUERY` | 必填 | 非空搜索词；含空格时加引号 |
-| `--source NAME` | `default_search = true` 的源 | 按 Provider 的 `name` 选择，未知名称返回退出码 3 |
-| `--json` | 关闭 | 输出 JSON 数组 |
-| `--jsonl` | 关闭 | 每行一个 JSON 对象，在聚合完成后输出 |
-| `--magnet` | 关闭 | 每行一个 magnet，排除无法构造 magnet 的结果 |
-| `--min-seeds N` | 不限制 | seeders 下限，包含边界 |
-| `--min-size SIZE` | 不限制 | 大小下限，包含边界 |
-| `--max-size SIZE` | 不限制 | 大小上限，包含边界 |
-| `--sort seeds\|size\|date\|title` | `seeds` | 前三种降序、未知值排最后；标题升序 |
-| `--limit N` | `20` | 最终聚合结果的上限，必须大于 0 |
-| `--timeout SECONDS` | `15` | 每个 Provider 的超时，范围 1–300 秒 |
+| `QUERY` | required | Non-empty search term; quote it when it contains spaces |
+| `--source NAME` | sources with `default_search = true` | Select by provider `name`; unknown names exit 3 |
+| `--json` | off | Print a JSON array |
+| `--jsonl` | off | One JSON object per line, emitted after aggregation |
+| `--magnet` | off | One magnet per line, skipping results without one |
+| `--min-seeds N` | unlimited | Seeders lower bound, inclusive |
+| `--min-size SIZE` | unlimited | Size lower bound, inclusive |
+| `--max-size SIZE` | unlimited | Size upper bound, inclusive |
+| `--sort seeds\|size\|date\|title` | `seeds` | First three descending, unknowns last; title ascending |
+| `--limit N` | `20` | Cap on final aggregated results, must be > 0 |
+| `--timeout SECONDS` | `15` | Per-provider timeout, 1–300 seconds |
 
-`--json`、`--jsonl`、`--magnet` 互斥。未选择时输出表格，未知的 seeders、大小和日期显示为 `?`，大小显示为十进制 GB，AGE 以天计。
+`--json`, `--jsonl`, `--magnet` are mutually exclusive. Without them you get a table; unknown seeders, size, and date show as `?`, sizes render as decimal GB, AGE counts days.
 
-大小可直接写字节数，也可使用 K/M/G/T、KB/MB/GB/TB（十进制）或 KiB/MiB/GiB/TiB（二进制），例如 `10G`、`1.5GiB`。设置大小或 seeders 过滤器后，对应字段未知的结果会被排除。过滤在去重之后执行，`--limit` 在排序之后执行。
+Sizes accept raw bytes, K/M/G/T, KB/MB/GB/TB (decimal), or KiB/MiB/GiB/TiB (binary), e.g. `10G`, `1.5GiB`. Results with unknown fields are excluded once a size or seeders filter is set. Filtering runs after dedup; `--limit` applies after sorting.
 
-### 全局参数与环境变量
+### Global Options & Environment Variables
 
-| 参数 | 环境变量 | 作用 |
+| Option | Env var | Effect |
 | --- | --- | --- |
-| `--config PATH` | `MAGNET_CONFIG` | 指定 TOML 配置文件 |
-| `--cache PATH` | `MAGNET_CACHE` | 指定搜索快照文件，便于隔离会话 |
+| `--config PATH` | `MAGNET_CONFIG` | Use a TOML config file |
+| `--cache PATH` | `MAGNET_CACHE` | Use a snapshot file, handy for isolated sessions |
 
-命令行参数优先于对应环境变量。全局参数可以放在子命令前后。程序不会自动读取当前目录的 `config.toml`；需要显式指定路径或设置 `MAGNET_CONFIG`。
+CLI flags win over the matching env vars. Global options can go before or after the subcommand. The program never auto-reads `./config.toml`; pass a path explicitly or set `MAGNET_CONFIG`.
 
-## 配置 Provider
+## Configuring Providers
 
-没有指定配置时，默认并发查询 Nyaa RSS、Knaben JSON 和 Sukebei RSS。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
+With no config, Nyaa RSS, Knaben JSON, and Sukebei RSS are queried concurrently. An explicit config **replaces the default provider list**, it is not appended to it.
 
-从 [config.example.toml](config.example.toml) 开始：
+Start from [config.example.toml](config.example.toml):
 
 ```bash
 cp config.example.toml config.toml
@@ -103,24 +105,24 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。
+Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected.
 
-| `kind` | 请求方式 | 搜索行为 |
+| `kind` | Request | Search behavior |
 | --- | --- | --- |
-| `nyaa` | HTTP GET RSS | 添加 `page=rss` 和搜索参数 `q` |
-| `sukebei` | HTTP GET RSS | 使用 Nyaa RSS 协议，添加 `page=rss` 和 `q` |
-| `knaben` | HTTP POST JSON | 向配置的 API URL 提交标题搜索，单次请求 150 条 |
-| `torznab` | HTTP GET RSS/XML | 添加 `t=search`、`q`、`extended=1`，可带 API key |
-| `rss` | HTTP GET RSS | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
+| `nyaa` | HTTP GET RSS | Adds `page=rss` and query param `q` |
+| `sukebei` | HTTP GET RSS | Nyaa RSS protocol, adds `page=rss` and `q` |
+| `knaben` | HTTP POST JSON | Title search against the configured API URL, 150 rows per request |
+| `torznab` | HTTP GET RSS/XML | Adds `t=search`, `q`, `extended=1`, optional API key |
+| `rss` | HTTP GET RSS | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
 
-### Sukebei：Nyaa NSFW
+### Sukebei: Nyaa NSFW
 
 ```bash
-magnet search "关键词" --source sukebei --json
-magnet search "关键词" --source nyaa,sukebei --jsonl
+magnet search "keyword" --source sukebei --json
+magnet search "keyword" --source nyaa,sukebei --jsonl
 ```
 
-Sukebei 使用 `https://sukebei.nyaa.si/`。自定义配置可加入以下条目：
+Sukebei lives at `https://sukebei.nyaa.si/`. A custom config can add:
 
 ```toml
 [[providers]]
@@ -130,11 +132,11 @@ url = "https://sukebei.nyaa.si/"
 default_search = true
 ```
 
-所有 Provider 都支持可选字段 `default_search`（省略时为 `true`）。设为 `false` 时仍会出现在 `providers` 列表中，但仅在 `--source` 显式选择时参与搜索。内置 Sukebei 和示例配置将其设为 `true`，参与默认聚合搜索；改为 `false` 可排除默认搜索。若没有可用于默认搜索的源，须传入 `--source`，否则返回 3。
+Every provider accepts optional `default_search` (defaults to `true`). With `false` it still shows in `providers` but only searches when picked via `--source`. The built-in Sukebei and the example config set it to `true`, joining the default aggregated search; flip it to `false` to sit out. With no default-searchable sources you must pass `--source`, otherwise exit 3.
 
-### Torznab：Jackett / Prowlarr
+### Torznab: Jackett / Prowlarr
 
-在配置文件中添加以下条目，或取消示例文件中对应条目的注释。将 `url` 替换为服务给出的**完整 Torznab API endpoint**，不能只填服务首页：
+Add the entry below to your config, or uncomment the matching entry in the example file. Replace `url` with the **full Torznab API endpoint** your service gives you, not the service homepage:
 
 ```toml
 [[providers]]
@@ -144,14 +146,14 @@ url = "http://localhost:9117/api/v2.0/indexers/all/results/torznab/api"
 api_key_env = "TORZNAB_API_KEY"
 ```
 
-`api_key_env` 是保存密钥的环境变量名称，而不是密钥本身；仅 Torznab 使用此字段。不需要鉴权的源可以省略它。
+`api_key_env` names the environment variable holding the key, not the key itself; only Torznab uses this field. Sources without auth omit it.
 
 ```bash
 export TORZNAB_API_KEY='your-key'
 magnet --config config.toml search "ubuntu" --source local --json
 ```
 
-`providers` 只显示名称和类型，不显示 URL 或密钥。HTTP 错误诊断也不输出请求 URL。
+`providers` shows names and kinds only, never URLs or keys. HTTP error diagnostics never print request URLs either.
 
 ### RSS
 
@@ -162,13 +164,13 @@ kind = "rss"
 url = "https://example.org/torrents.rss"
 ```
 
-上面的 URL 是占位示例，需替换为实际 RSS feed。解析器支持 RSS item 中的 magnet 链接、enclosure，以及 Nyaa/Torznab 扩展字段。仅有 `.torrent` 下载链接时，不会自动下载文件计算 hash。普通 Newznab NZB 结果不能转换成 BitTorrent magnet；当前不支持 Atom feed。
+The URL above is a placeholder; substitute a real RSS feed. The parser understands magnet links and enclosures in RSS items plus Nyaa/Torznab extension fields. A bare `.torrent` download link is never fetched to compute a hash. Plain Newznab NZB results can't become BitTorrent magnets; Atom feeds are currently unsupported.
 
-协议参考：[Knaben API](https://knaben.org/api/v1/)、[Nyaa RSS 模板](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml)、[Torznab 规范](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html)。
+Protocol references: [Knaben API](https://knaben.org/api/v1/), [Nyaa RSS template](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml), [Torznab spec](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html).
 
-## JSON 结果与聚合规则
+## JSON Results & Aggregation Rules
 
-`search --json` 返回数组，`--jsonl` 使用相同的对象结构。以下为示例数据：
+`search --json` returns an array; `--jsonl` uses the same object shape. Sample data:
 
 ```json
 [
@@ -188,34 +190,34 @@ url = "https://example.org/torrents.rss"
 ]
 ```
 
-| 字段 | 类型 | 含义 |
+| Field | Type | Meaning |
 | --- | --- | --- |
-| `id` | 整数 | 当前搜索快照中的位置，从 1 开始；本地 `resolve` 输出为 0 |
-| `title` | 字符串 | torrent 标题 |
-| `info_hash` | 字符串或 null | 规范化为小写十六进制的 BTIH |
-| `magnet` | 字符串或 null | URL 编码后的 magnet URI |
-| `size` | 整数或 null | 字节数 |
-| `seeders` / `leechers` | 整数或 null | 源报告的做种者 / 下载者数量 |
-| `published_at` | 字符串或 null | UTC RFC 3339 时间；无法解析或缺少时区时为 null |
-| `sources` | 字符串数组 | 已合并结果的 Provider 名称，排序并去重 |
-| `detail_url` | 字符串或 null | 源提供的详情或关联链接 |
-| `trackers` | 字符串数组 | 合并后的 tracker URL，排序并去重 |
+| `id` | integer | Position in the current search snapshot, from 1; local `resolve` prints 0 |
+| `title` | string | Torrent title |
+| `info_hash` | string or null | BTIH normalized to lowercase hex |
+| `magnet` | string or null | URL-encoded magnet URI |
+| `size` | integer or null | Bytes |
+| `seeders` / `leechers` | integer or null | Seeder / leecher counts as reported |
+| `published_at` | string or null | UTC RFC 3339 timestamp; null when unparseable or zone-less |
+| `sources` | string array | Merged provider names, sorted and deduped |
+| `detail_url` | string or null | Detail or related link from the source |
+| `trackers` | string array | Merged tracker URLs, sorted and deduped |
 
-聚合以 BTIH 为主键，不使用标题。base32 hash 会转换成十六进制；没有 hash 的结果即使同名也不会合并。同一 hash 的 sources、trackers 取并集，seeders、leechers 取最大报告值，不累加。
+Aggregation keys on BTIH, never on title. Base32 hashes convert to hex; hash-less results never merge even with identical names. For one hash, sources and trackers union, seeders/leechers take the max reported value, never summed.
 
-标题采用配置顺序中最先出现的记录；大小、发布时间和详情链接优先保留该记录的已有值，缺失时从后续记录补齐。Provider 完成请求的先后顺序不影响这个优先级。无效或冲突的 hash 会被跳过并输出警告。
+The title comes from the first record in config order; size, publish time, and detail link keep that record's values, backfilled from later records when missing. Provider completion order doesn't affect this priority. Invalid or conflicting hashes are skipped with a warning.
 
-重建 magnet 时保留 BTIH、显示名称和 tracker，其他 magnet 参数不保留。当前支持 BTIH/v1，不支持仅包含 v2 hash 的 magnet。
+Rebuilt magnets keep BTIH, display name, and trackers; other magnet params are dropped. BTIH/v1 is supported; v2-only magnets are not.
 
-## 搜索快照与 `get`
+## Search Snapshots & `get`
 
-搜索结果在过滤、排序和截断后写入快照，再输出到终端。Linux 默认路径是 `~/.cache/magnet/last-search.json`；设置 `XDG_CACHE_HOME` 时使用该目录下的 `magnet/last-search.json`。其他平台使用平台用户缓存目录；无法确定目录时回退到当前目录的 `.magnet-last-search.json`。
+Results hit the snapshot after filtering, sorting, and truncation, then print. Linux default is `~/.cache/magnet/last-search.json`; with `XDG_CACHE_HOME` set it lives under `magnet/last-search.json` there. Other platforms use the platform cache dir; when none is found it falls back to `./.magnet-last-search.json`.
 
-`get ID` 只读取快照，不访问网络。ID 仅对这一次搜索有效，后续搜索会重新编号。执行到快照写入阶段的搜索，包括空结果和所有 Provider 失败的搜索，都会原子替换旧快照；参数校验失败不会清空旧快照，写入失败则返回退出码 2。
+`get ID` only reads the snapshot, never the network. IDs are valid for that one search; the next search renumbers. Any search reaching the snapshot stage — empty results and all-provider-failed included — atomically replaces the old snapshot; argument validation failures don't wipe it, write failures exit 2.
 
-没有 hash/magnet 的记录仍可出现在表格和 JSON 中。对此执行 `get ID` 返回 1，`get ID --json` 可以读取完整记录。缓存文件缺失或损坏时返回 2，请重新搜索。
+Records without hash/magnet can still appear in tables and JSON. `get ID` on one exits 1, while `get ID --json` reads the full record. A missing or corrupt cache file exits 2; search again.
 
-并发搜索使用最后一次成功写入的快照。脚本或 agent 会话可显式隔离缓存：
+Concurrent searches use the last successfully written snapshot. Scripts or agent sessions can isolate the cache explicitly:
 
 ```bash
 export MAGNET_CACHE="$PWD/session-search.json"
@@ -223,23 +225,23 @@ magnet search "ubuntu" --json
 magnet get 1 --json
 ```
 
-## 退出码与脚本调用
+## Exit Codes & Scripting
 
-结果写入 stdout，警告和错误写入 stderr。脚本应分别捕获两者，并检查退出码。
+Results go to stdout, warnings and errors to stderr. Scripts should capture both separately and check the exit code.
 
-| 退出码 | 含义 |
+| Code | Meaning |
 | --- | --- |
-| `0` | 搜索返回结果，或其他命令成功 |
-| `1` | 无匹配结果、快照中没有指定 ID，或该结果没有可输出的 magnet |
-| `2` | 所有源失败且包含解析/运行时配置错误，或本地 I/O 失败 |
-| `3` | 无效参数或配置，包括未知 source、无法读取配置文件 |
-| `4` | 所有 Provider 都因 HTTP、网络或超时错误失败 |
+| `0` | Search returned results, or other command succeeded |
+| `1` | No matches, no such ID in the snapshot, or the result has no printable magnet |
+| `2` | All sources failed including parse/runtime config errors, or local I/O failed |
+| `3` | Bad arguments or config, including unknown source, unreadable config file |
+| `4` | Every provider failed with HTTP, network, or timeout errors |
 
-部分源失败时会输出警告；只要最终有结果，退出码仍为 0。至少一个源成功但过滤后无结果时返回 1。全部源失败且混合网络和解析错误时返回 2。缺失 `api_key_env` 指定的环境变量属于该 Provider 的运行时失败。
+Partial source failures print warnings; the exit stays 0 while results remain. At least one success but nothing after filtering exits 1. All failed with mixed network and parse errors exits 2. A missing `api_key_env` variable counts as that provider's runtime failure.
 
-搜索正常执行到输出阶段时，空 JSON 是 `[]`，空 JSONL/magnet 没有任何行；参数、配置或缓存写入失败时，不保证 stdout 中有 JSON。JSONL 在聚合完成后一次输出，不是逐 Provider 实时流。
+A search reaching the output stage prints `[]` for empty JSON and zero lines for empty JSONL/magnet; on argument, config, or cache-write failure, stdout JSON is not guaranteed. JSONL emits once after aggregation, not as a per-provider stream.
 
-下面的 Python 示例无需额外依赖，并区分无结果与执行失败：
+The Python example below needs no extra dependencies and tells "no results" apart from failure:
 
 ```python
 import json
@@ -261,17 +263,17 @@ for row in rows:
         print(row["magnet"])
 ```
 
-## 与 pikpaktui 通过命令行集成
+## Piping into pikpaktui
 
-安装 `jq` 和 `pikpaktui`，并先完成 `pikpaktui` 的登录配置。用管道将搜索结果中的第一条 magnet 传给 `pikpaktui offline`，即可创建 PikPak 云端离线任务：
+Install `jq` and `pikpaktui` and finish `pikpaktui` login first. Pipe the first magnet of a search into `pikpaktui offline` to create a PikPak cloud task:
 
 ```bash
 magnet search "odv-534" --json | jq -r '.[0].magnet' | xargs pikpaktui offline
 ```
 
-`.[0]` 选择排序后的第一条结果（默认按 seeders 降序），`jq -r` 去掉 JSON 字符串的引号，`xargs` 将 magnet 作为 `pikpaktui offline` 的参数。
+`.[0]` picks the top result (seeders descending by default), `jq -r` strips the JSON quotes, `xargs` passes the magnet as the argument.
 
-在脚本中可使用下面的 Bash 写法：先确认搜索成功，再提取非空 magnet，并用引号传递完整 URI。搜索失败、结果为空或第一条没有 magnet 时，不会创建任务。
+For scripts, confirm success first, then extract a non-empty magnet and quote the full URI. Nothing is created when the search fails, results are empty, or the first row lacks a magnet:
 
 ```bash
 if results=$(magnet search "odv-534" --json) &&
@@ -280,7 +282,7 @@ if results=$(magnet search "odv-534" --json) &&
 fi
 ```
 
-也可以读取上一次搜索中选定的 ID：
+Or read a picked ID from the last search:
 
 ```bash
 if uri=$(magnet get 1); then
@@ -288,33 +290,33 @@ if uri=$(magnet get 1); then
 fi
 ```
 
-`pikpaktui offline` 支持 `--to` 指定目标目录、`--name` 指定任务名称，以及 `--dry-run` 预览而不创建任务；例如将最后一行调用改为 `pikpaktui offline "$uri" --dry-run`。账号、目标目录和离线任务均由 `pikpaktui` 管理，`magnet` 负责搜索和输出 magnet。
+`pikpaktui offline` takes `--to` for the target dir, `--name` for the task name, and `--dry-run` to preview; e.g. swap the last call for `pikpaktui offline "$uri" --dry-run`. Accounts, target dirs, and offline tasks belong to `pikpaktui`; `magnet` handles search and magnet output.
 
-## 当前限制
+## Current Limits
 
-最多 8 个 Provider 并发执行，每个源默认 15 秒超时，单次响应上限 8 MiB。超过 8 个源会排队，因此 `--timeout` 不是整个命令的总时间上限。
+At most 8 providers run concurrently, 15 s default timeout each, 8 MiB cap per response. Extra sources queue, so `--timeout` is not a total command deadline.
 
-每个源只读取一页或一次 feed（Knaben 请求 150 条），不自动翻页；`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性与结果完整性取决于上游服务。
+Each source reads one page or feed (Knaben asks for 150 rows), never auto-paginates; `--limit` caps final output only and may return fewer rows than asked. Public source availability and completeness depend on upstream services.
 
-当前未实现 TUI、MCP、HTML 抓取、DHT 查询或下载功能。
+No TUI, MCP, HTML scraping, DHT lookup, or downloads.
 
-## 开发与扩展
+## Develop & Extend
 
 ```text
 src/
-├── main.rs             # 命令执行、输出、过滤和排序
-├── cli.rs              # clap 参数定义
-├── model.rs            # Torrent 模型、hash/magnet 规范化
-├── search.rs           # 并发调度、错误汇总、去重
-├── cache.rs            # 原子写入和读取搜索快照
-├── lib.rs              # library 模块导出
+├── main.rs             # command execution, output, filtering, sorting
+├── cli.rs              # clap argument definitions
+├── model.rs            # Torrent model, hash/magnet normalization
+├── search.rs           # concurrent scheduling, error summary, dedup
+├── cache.rs            # atomic snapshot writes and reads
+├── lib.rs              # library module exports
 └── providers/
-    ├── mod.rs          # Provider trait、配置和 HTTP 请求封装
+    ├── mod.rs          # Provider trait, config, HTTP wrapper
     ├── feeds.rs        # Nyaa / Sukebei / Torznab / RSS
     └── knaben.rs       # Knaben JSON API
 ```
 
-library 导出 `Provider`、`Torrent` 和搜索引擎，可供新 Provider 或其他入口复用。通过 library 添加自定义源时实现 `Provider` trait；要让 CLI 的 TOML 配置支持新的 `kind`，还需更新 `Kind` 和 `HttpProvider` 分发逻辑。
+The library exports `Provider`, `Torrent`, and the search engine for new providers or other front ends. Adding a source via the library means implementing `Provider`; to support a new `kind` in CLI TOML configs, also update the `Kind` and `HttpProvider` dispatch.
 
 ```bash
 cargo fmt --check
@@ -322,8 +324,8 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 ```
 
-测试使用本地 HTTP 模拟服务，不需要公网 Provider 或 API key。CI 执行格式检查、Clippy 和测试。
+Tests use a local HTTP stub; no public providers or API keys needed. CI runs the format check, Clippy, and tests across Linux, Windows, and macOS.
 
-## 许可证
+## License
 
 [MIT](LICENSE)
