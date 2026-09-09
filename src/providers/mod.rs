@@ -67,7 +67,7 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 kind: Kind::Sukebei,
                 url: "https://sukebei.nyaa.si/".into(),
                 api_key_env: None,
-                default_search: false,
+                default_search: true,
             },
         ]
     };

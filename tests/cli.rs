@@ -263,7 +263,7 @@ fn sukebei_is_selectable_and_uses_nyaa_rss_protocol() {
 }
 
 #[test]
-fn builtin_sukebei_is_listed_but_opt_in() {
+fn builtin_sukebei_participates_in_default_search() {
     let dir = tempfile::tempdir().unwrap();
     let output = run(dir.path(), &["providers", "--json"]);
     assert_eq!(output.status.code(), Some(0));
@@ -271,11 +271,11 @@ fn builtin_sukebei_is_listed_but_opt_in() {
     let rows = rows.as_array().unwrap();
     let sukebei = rows.iter().find(|row| row["name"] == "sukebei").unwrap();
     assert_eq!(sukebei["kind"], "sukebei");
-    assert_eq!(sukebei["default_search"], false);
+    assert_eq!(sukebei["default_search"], true);
     assert_eq!(
         rows.iter()
             .filter(|row| row["default_search"] == true)
             .count(),
-        2
+        3
     );
 }

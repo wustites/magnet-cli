@@ -87,7 +87,7 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 
 ## 配置 Provider
 
-没有指定配置时，默认并发查询 Nyaa RSS 和 Knaben JSON；内置 Sukebei 通过 `--source sukebei` 显式选择。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
+没有指定配置时，默认并发查询 Nyaa RSS、Knaben JSON 和 Sukebei RSS。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
 
 从 [config.example.toml](config.example.toml) 开始：
 
@@ -121,10 +121,10 @@ Sukebei 使用 `https://sukebei.nyaa.si/`。自定义配置可加入以下条目
 name = "sukebei"
 kind = "sukebei"
 url = "https://sukebei.nyaa.si/"
-default_search = false
+default_search = true
 ```
 
-所有 Provider 都支持可选字段 `default_search`（省略时为 `true`）。设为 `false` 时仍会出现在 `providers` 列表中，但仅在 `--source` 显式选择时参与搜索。内置 Sukebei 和示例配置将其设为 `false`；改为 `true` 可加入默认聚合搜索。若没有可用于默认搜索的源，须传入 `--source`，否则返回 3。
+所有 Provider 都支持可选字段 `default_search`（省略时为 `true`）。设为 `false` 时仍会出现在 `providers` 列表中，但仅在 `--source` 显式选择时参与搜索。内置 Sukebei 和示例配置将其设为 `true`，参与默认聚合搜索；改为 `false` 可排除默认搜索。若没有可用于默认搜索的源，须传入 `--source`，否则返回 3。
 
 ### Torznab：Jackett / Prowlarr
 

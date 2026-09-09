@@ -24,9 +24,9 @@ url = "https://api.knaben.org/v1"
 # kind = "rss"
 # url = "https://example.org/torrents.rss"
 
-# Sukebei（Nyaa NSFW），通过 --source sukebei 显式选择。
+# Sukebei（Nyaa NSFW），参与默认搜索；也可通过 --source sukebei 单独选择。
 [[providers]]
 name = "sukebei"
 kind = "sukebei"
 url = "https://sukebei.nyaa.si/"
-default_search = false
+default_search = true
