@@ -1,0 +1,23 @@
+# An explicit config replaces the built-in providers.
+[[providers]]
+name = "nyaa"
+kind = "nyaa"
+url = "https://nyaa.si/"
+
+[[providers]]
+name = "knaben"
+kind = "knaben"
+url = "https://api.knaben.org/v1"
+
+# Uncomment and use the full API endpoint shown by Jackett/Prowlarr.
+# [[providers]]
+# name = "local"
+# kind = "torznab"
+# url = "http://localhost:9117/api/v2.0/indexers/all/results/torznab/api"
+# api_key_env = "TORZNAB_API_KEY"
+
+# RSS is fetched as-is and filtered locally by all query words (case-insensitive).
+# [[providers]]
+# name = "linux"
+# kind = "rss"
+# url = "https://example.org/torrents.rss"
