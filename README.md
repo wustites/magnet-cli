@@ -255,6 +255,35 @@ for row in rows:
         print(row["magnet"])
 ```
 
+## 与 pikpaktui 通过命令行集成
+
+安装 `jq` 和 `pikpaktui`，并先完成 `pikpaktui` 的登录配置。用管道将搜索结果中的第一条 magnet 传给 `pikpaktui offline`，即可创建 PikPak 云端离线任务：
+
+```bash
+magnet search "odv-534" --json | jq -r '.[0].magnet' | xargs pikpaktui offline
+```
+
+`.[0]` 选择排序后的第一条结果（默认按 seeders 降序），`jq -r` 去掉 JSON 字符串的引号，`xargs` 将 magnet 作为 `pikpaktui offline` 的参数。
+
+在脚本中可使用下面的 Bash 写法：先确认搜索成功，再提取非空 magnet，并用引号传递完整 URI。搜索失败、结果为空或第一条没有 magnet 时，不会创建任务。
+
+```bash
+if results=$(magnet search "odv-534" --json) &&
+   uri=$(printf '%s' "$results" | jq -er '.[0].magnet | select(type == "string" and startswith("magnet:?"))'); then
+    pikpaktui offline "$uri"
+fi
+```
+
+也可以读取上一次搜索中选定的 ID：
+
+```bash
+if uri=$(magnet get 1); then
+    pikpaktui offline "$uri" --to "/Downloads"
+fi
+```
+
+`pikpaktui offline` 支持 `--to` 指定目标目录、`--name` 指定任务名称，以及 `--dry-run` 预览而不创建任务；例如将最后一行调用改为 `pikpaktui offline "$uri" --dry-run`。账号、目标目录和离线任务均由 `pikpaktui` 管理，`magnet` 负责搜索和输出 magnet。
+
 ## 当前限制
 
 最多 8 个 Provider 并发执行，每个源默认 15 秒超时，单次响应上限 8 MiB。超过 8 个源会排队，因此 `--timeout` 不是整个命令的总时间上限。
