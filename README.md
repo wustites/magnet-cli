@@ -2,18 +2,24 @@
 
 用 Rust 编写的多 Provider torrent 搜索 CLI，同时提供可复用的 library。支持并发搜索、BTIH infohash 去重、tracker 合并，以及适合脚本和 agent 调用的 JSON 输出。
 
-当前版本为 **0.1.0 MVP**：内置 Nyaa、Knaben 和 Sukebei（Nyaa NSFW），可配置 Torznab 与 RSS。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
+0.1.0 已发布到 [crates.io](https://crates.io/crates/magnet-cli)：内置 Nyaa、Knaben 和 Sukebei（Nyaa NSFW），可配置 Torznab 与 RSS。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
 
 ## 安装与快速开始
 
-在安装了 Rust/Cargo 的环境中，从源码安装：
+从 crates.io 安装（命令名是 `magnet`）：
 
 ```bash
-git clone https://github.com/ZeroMarker/magnet-cli.git
-cd magnet-cli
-cargo install --path . --locked
+cargo install magnet-cli --locked
 magnet --version
 magnet search "ubuntu" --json
+```
+
+也可以从源码安装：
+
+```bash
+git clone https://github.com/wustites/magnet-cli.git
+cd magnet-cli
+cargo install --path . --locked
 ```
 
 安装后的命令名是 `magnet`。如果 shell 找不到命令，请确认 Cargo 的 bin 目录在 `PATH` 中（默认通常为 `~/.cargo/bin`）。
