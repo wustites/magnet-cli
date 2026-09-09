@@ -56,6 +56,9 @@ jobs:
       - name: Package
         run: cargo package --locked
 
+      - name: Clean packaged copy
+        run: rm -rf target/package
+
       - name: Publish dry run
         if: github.event_name == 'workflow_dispatch'
         run: cargo publish --locked --dry-run

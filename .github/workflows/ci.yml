@@ -60,3 +60,6 @@ jobs:
 
       - name: Verify package
         run: cargo package --locked
+
+      - name: Clean packaged copy
+        run: rm -rf target/package
