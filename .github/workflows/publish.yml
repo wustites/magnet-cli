@@ -56,15 +56,14 @@ jobs:
       - name: Package
         run: cargo package --locked
 
-      - name: Clean packaged copy
-        run: rm -rf target/package
-
       - name: Publish dry run
         if: github.event_name == 'workflow_dispatch'
         run: cargo publish --locked --dry-run
 
       - name: Publish
         if: github.event_name == 'push'
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_API_TOKEN }}
         run: cargo publish --locked
+
+      - name: Clean packaged copy
+        if: always()
+        run: rm -rf target/package
