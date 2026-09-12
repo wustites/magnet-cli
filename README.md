@@ -4,7 +4,7 @@
 
 A multi-provider torrent search CLI written in Rust, with a reusable library. Supports concurrent search, BTIH infohash dedup, tracker merging, and JSON output suited for scripts and agents.
 
-0.1.0 is published on [crates.io](https://crates.io/crates/magnet-cli). The current source includes built-in Nyaa, Knaben, Sukebei (Nyaa NSFW), APIBay, and Bitsearch, plus configurable Torznab and RSS/Atom. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
+Releases are published on [crates.io](https://crates.io/crates/magnet-cli). Version 0.2.0 includes built-in Nyaa, Knaben, Sukebei (Nyaa NSFW), APIBay, and Bitsearch, plus configurable Torznab and RSS/Atom. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
 
 ## Install & Quick Start
 

@@ -4,7 +4,7 @@
 
 用 Rust 编写的多 Provider torrent 搜索 CLI，同时提供可复用的 library。支持并发搜索、BTIH infohash 去重、tracker 合并，以及适合脚本和 agent 调用的 JSON 输出。
 
-0.1.0 已发布到 [crates.io](https://crates.io/crates/magnet-cli)。当前源码内置 Nyaa、Knaben、Sukebei（Nyaa NSFW）、APIBay 和 Bitsearch，可配置 Torznab 与 RSS/Atom。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
+版本发布在 [crates.io](https://crates.io/crates/magnet-cli)。0.2.0 内置 Nyaa、Knaben、Sukebei（Nyaa NSFW）、APIBay 和 Bitsearch，可配置 Torznab 与 RSS/Atom。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
 
 ## 安装与快速开始
 
