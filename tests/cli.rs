@@ -318,8 +318,11 @@ fn builtin_sukebei_participates_in_default_search() {
         rows.iter()
             .filter(|row| row["default_search"] == true)
             .count(),
-        3
+        5
     );
+    for name in ["nyaa", "knaben", "sukebei", "apibay", "bitsearch"] {
+        assert!(rows.iter().any(|row| row["name"] == name));
+    }
 }
 
 #[test]
@@ -392,4 +395,60 @@ fn jsonl_sort_limit_and_snapshot_are_consistent() {
     assert_eq!(cached.status.code(), Some(0));
     let cached_row: Value = serde_json::from_slice(&cached.stdout).unwrap();
     assert_eq!(cached_row["title"], "Alpha Linux");
+}
+
+#[test]
+fn apibay_and_authenticated_bitsearch_are_searchable() {
+    let (apibay_url, apibay_handle) = server(
+        r#"[{"id":"1","name":"Ubuntu APIBay","info_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":"42","seeders":"12","leechers":"3","added":"1700000000"}]"#.into(),
+        "q=ubuntu&cat=0",
+    );
+    let bitsearch_body = r#"{"success":true,"results":[{"title":"Ubuntu Bitsearch","infohash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":84,"seeders":24,"leechers":6,"updatedAt":"2026-09-12T04:31:03Z"}],"pagination":{"hasNext":false}}"#;
+    let (bitsearch_url, requests, bitsearch_handle) = paged_server(vec![bitsearch_body.into()]);
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!(
+            "[[providers]]\nname='apibay'\nkind='apibay'\nurl='{apibay_url}'\n[[providers]]\nname='bitsearch'\nkind='bitsearch'\nurl='{bitsearch_url}'\napi_key_env='BITSEARCH_TEST_KEY'"
+        ),
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_magnet"))
+        .arg("--cache")
+        .arg(dir.path().join("cache.json"))
+        .args([
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "ubuntu",
+            "--json",
+        ])
+        .env("BITSEARCH_TEST_KEY", "secret-value")
+        .output()
+        .unwrap();
+    apibay_handle.join().unwrap();
+    bitsearch_handle.join().unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(rows.as_array().unwrap().len(), 2);
+    assert!(
+        rows.as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row["magnet"].is_string())
+    );
+    let requests = requests.lock().unwrap();
+    let request = &requests[0];
+    assert!(request.contains("q=ubuntu&page=1&limit=100&sort=seeders&order=desc"));
+    assert!(
+        request
+            .to_ascii_lowercase()
+            .contains("x-api-key: secret-value")
+    );
 }

@@ -9,6 +9,18 @@ name = "knaben"
 kind = "knaben"
 url = "https://api.knaben.org/v1"
 
+[[providers]]
+name = "apibay"
+kind = "apibay"
+url = "https://apibay.org/q.php"
+
+[[providers]]
+name = "bitsearch"
+kind = "bitsearch"
+url = "https://bitsearch.eu/api/v1/search"
+# 可选：免费匿名额度为每 IP 每日 200 次；配置 API key 可提高额度。
+# api_key_env = "BITSEARCH_API_KEY"
+
 # 取消以下条目的注释，并填写 Jackett/Prowlarr 提供的完整 Torznab API endpoint。
 # api_key_env 是环境变量名称；运行前 export TORZNAB_API_KEY=你的密钥。
 # [[providers]]

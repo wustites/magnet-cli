@@ -4,7 +4,7 @@
 
 用 Rust 编写的多 Provider torrent 搜索 CLI，同时提供可复用的 library。支持并发搜索、BTIH infohash 去重、tracker 合并，以及适合脚本和 agent 调用的 JSON 输出。
 
-0.1.0 已发布到 [crates.io](https://crates.io/crates/magnet-cli)：内置 Nyaa、Knaben 和 Sukebei（Nyaa NSFW），可配置 Torznab 与 RSS。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
+0.1.0 已发布到 [crates.io](https://crates.io/crates/magnet-cli)。当前源码内置 Nyaa、Knaben、Sukebei（Nyaa NSFW）、APIBay 和 Bitsearch，可配置 Torznab 与 RSS/Atom。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
 
 ## 安装与快速开始
 
@@ -98,7 +98,7 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 
 ## 配置 Provider
 
-没有指定配置时，默认并发查询 Nyaa RSS、Knaben JSON 和 Sukebei RSS。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
+没有指定配置时，默认并发查询 Nyaa RSS、Knaben JSON、Sukebei RSS、APIBay 和 Bitsearch。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
 
 从 [config.example.toml](config.example.toml) 开始：
 
@@ -108,17 +108,21 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。`api_key_env` 仅适用于 Torznab，且必须是合法的环境变量名。
+每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。`api_key_env` 仅适用于 Torznab 和 Bitsearch，且必须是合法的环境变量名。
 
 | `kind` | 请求方式 | 搜索行为 |
 | --- | --- | --- |
 | `nyaa` | HTTP GET RSS | 添加 `page=rss` 和搜索参数 `q` |
 | `sukebei` | HTTP GET RSS | 使用 Nyaa RSS 协议，添加 `page=rss` 和 `q` |
 | `knaben` | HTTP POST JSON | 向配置的 API URL 提交标题搜索，单次请求 150 条 |
+| `apibay` | HTTP GET JSON | 在 APIBay 的全部分类中搜索；读取 API 固定返回的结果集 |
+| `bitsearch` | HTTP GET JSON | 搜索 Bitsearch，每页 100 条；可选 API key 请求头 |
 | `torznab` | HTTP GET RSS/XML | 添加 `t=search`、`q`、`extended=1`，可带 API key |
 | `rss` | HTTP GET RSS/Atom | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
 
-`--pages` 分别使用 Knaben 的 `from` 偏移和 Torznab 的 `offset`/`limit`。Nyaa/Sukebei RSS 与通用 RSS/Atom 没有可靠的标准搜索分页机制，因此只请求一次。Provider 返回空页时提前停止；单 Provider 超时包含其请求的所有页面。
+`--pages` 分别使用 Knaben 的 `from` 偏移、Bitsearch 的 `page` 和 Torznab 的 `offset`/`limit`。APIBay、Nyaa/Sukebei RSS 与通用 RSS/Atom 没有可靠的兼容分页机制，因此只请求一次。Provider 返回空页或末页时提前停止；单 Provider 超时包含其请求的所有页面。
+
+Bitsearch 匿名额度目前为每个 IP 每日 200 次。需要使用账号 API key 时，在该 Provider 上设置 `api_key_env`；密钥通过 `x-api-key` 请求头发送，不会出现在诊断信息中。
 
 ### Sukebei：Nyaa NSFW
 
@@ -171,7 +175,7 @@ url = "https://example.org/torrents.rss"
 
 上面的 URL 是占位示例，需替换为实际 RSS 或 Atom feed。解析器支持 RSS item 和 Atom entry 中的 magnet 链接、enclosure，以及 Nyaa/Torznab 扩展字段。仅有 `.torrent` 下载链接时，不会自动下载文件计算 hash。普通 Newznab NZB 结果不能转换成 BitTorrent magnet。
 
-协议参考：[Knaben API](https://knaben.org/api/v1/)、[Nyaa RSS 模板](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml)、[Torznab 规范](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html)。
+协议参考：[Knaben API](https://knaben.org/api/v1/)、[Bitsearch API](https://bitsearch.eu/api)、[Nyaa RSS 模板](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml)、[Torznab 规范](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html)。
 
 ## JSON 结果与聚合规则
 
@@ -301,7 +305,7 @@ fi
 
 默认同时执行 8 个 Provider（可配置为 1–64），每个源默认 15 秒超时，单次响应上限 8 MiB。更多源会排队；`--timeout` 覆盖一个 Provider 及其所有请求页，需要限制整条命令时使用 `--deadline`。
 
-每个源默认读取一页。`--pages` 可为 Knaben 和 Torznab 请求最多 20 页；Nyaa/Sukebei RSS 与通用 RSS/Atom 只请求一次。`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性与结果完整性取决于上游服务。
+每个源默认读取一页。`--pages` 可为 Knaben、Bitsearch 和 Torznab 请求最多 20 页；APIBay、Nyaa/Sukebei RSS 与通用 RSS/Atom 只请求一次。`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性、限流和结果完整性取决于上游服务。
 
 当前未实现 TUI、MCP、HTML 抓取、DHT 查询或下载功能。
 

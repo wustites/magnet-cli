@@ -9,6 +9,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Optional provider pagination with `search --pages`.
+- Built-in APIBay and Bitsearch search providers.
 - Configurable provider concurrency and an optional total search deadline.
 - Atom feed parsing for configured feed providers.
 - A documented Rust 1.88 minimum supported version, dependency updates, and RustSec CI.

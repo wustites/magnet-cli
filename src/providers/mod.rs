@@ -1,3 +1,5 @@
+mod apibay;
+mod bitsearch;
 mod feeds;
 mod knaben;
 
@@ -20,6 +22,10 @@ pub enum Kind {
     Sukebei,
     /// Knaben JSON API.
     Knaben,
+    /// APIBay JSON API for The Pirate Bay.
+    Apibay,
+    /// Bitsearch JSON API.
+    Bitsearch,
     /// Torznab RSS API.
     Torznab,
     /// A fixed RSS or Atom feed filtered locally.
@@ -36,7 +42,7 @@ pub struct ProviderConfig {
     pub kind: Kind,
     /// Feed URL or API endpoint.
     pub url: String,
-    /// Environment variable containing a Torznab API key.
+    /// Environment variable containing a Torznab or Bitsearch API key.
     pub api_key_env: Option<String>,
     #[serde(default = "default_search")]
     /// Whether this provider participates when `--source` is omitted.
@@ -82,6 +88,20 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 api_key_env: None,
                 default_search: true,
             },
+            ProviderConfig {
+                name: "apibay".into(),
+                kind: Kind::Apibay,
+                url: "https://apibay.org/q.php".into(),
+                api_key_env: None,
+                default_search: true,
+            },
+            ProviderConfig {
+                name: "bitsearch".into(),
+                kind: Kind::Bitsearch,
+                url: "https://bitsearch.eu/api/v1/search".into(),
+                api_key_env: None,
+                default_search: true,
+            },
         ]
     };
     let mut names = HashSet::new();
@@ -101,8 +121,8 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
         if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
             bail!("provider URLs must use HTTP(S)");
         }
-        if config.api_key_env.is_some() && !matches!(config.kind, Kind::Torznab) {
-            bail!("api_key_env is only valid for Torznab providers");
+        if config.api_key_env.is_some() && !matches!(config.kind, Kind::Torznab | Kind::Bitsearch) {
+            bail!("api_key_env is only valid for Torznab or Bitsearch providers");
         }
         if config.api_key_env.as_ref().is_some_and(|name| {
             name.is_empty()
@@ -180,6 +200,8 @@ impl Provider for HttpProvider {
     async fn search_pages(&self, query: &str, pages: u16) -> Result<Vec<Torrent>, ProviderError> {
         match self.config.kind {
             Kind::Knaben => knaben::search(self, query, pages).await,
+            Kind::Apibay => apibay::search(self, query).await,
+            Kind::Bitsearch => bitsearch::search(self, query, pages).await,
             _ => feeds::search(self, query, pages).await,
         }
     }

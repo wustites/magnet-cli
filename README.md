@@ -4,7 +4,7 @@
 
 A multi-provider torrent search CLI written in Rust, with a reusable library. Supports concurrent search, BTIH infohash dedup, tracker merging, and JSON output suited for scripts and agents.
 
-0.1.0 is published on [crates.io](https://crates.io/crates/magnet-cli): built-in Nyaa, Knaben, and Sukebei (Nyaa NSFW), plus configurable Torznab and RSS. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
+0.1.0 is published on [crates.io](https://crates.io/crates/magnet-cli). The current source includes built-in Nyaa, Knaben, Sukebei (Nyaa NSFW), APIBay, and Bitsearch, plus configurable Torznab and RSS/Atom. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
 
 ## Install & Quick Start
 
@@ -98,7 +98,7 @@ CLI flags win over the matching env vars. Global options can go before or after 
 
 ## Configuring Providers
 
-With no config, Nyaa RSS, Knaben JSON, and Sukebei RSS are queried concurrently. An explicit config **replaces the default provider list**, it is not appended to it.
+With no config, Nyaa RSS, Knaben JSON, Sukebei RSS, APIBay, and Bitsearch are queried concurrently. An explicit config **replaces the default provider list**, it is not appended to it.
 
 Start from [config.example.toml](config.example.toml):
 
@@ -108,17 +108,21 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected. `api_key_env` is accepted only for Torznab and must be a valid environment variable name.
+Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected. `api_key_env` is accepted only for Torznab and Bitsearch and must be a valid environment variable name.
 
 | `kind` | Request | Search behavior |
 | --- | --- | --- |
 | `nyaa` | HTTP GET RSS | Adds `page=rss` and query param `q` |
 | `sukebei` | HTTP GET RSS | Nyaa RSS protocol, adds `page=rss` and `q` |
 | `knaben` | HTTP POST JSON | Title search against the configured API URL, 150 rows per request |
+| `apibay` | HTTP GET JSON | Searches APIBay across all categories; returns up to the API's fixed result set |
+| `bitsearch` | HTTP GET JSON | Searches Bitsearch, 100 rows per page; optional API key header |
 | `torznab` | HTTP GET RSS/XML | Adds `t=search`, `q`, `extended=1`, optional API key |
 | `rss` | HTTP GET RSS/Atom | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
 
-`--pages` uses Knaben's `from` offset and Torznab's `offset`/`limit`. Nyaa/Sukebei RSS and configured RSS/Atom URLs are fetched once because those feeds do not expose a reliable standard search pagination mechanism. Pagination stops early when a provider returns an empty page; the per-provider timeout covers all requested pages.
+`--pages` uses Knaben's `from` offset, Bitsearch's `page`, and Torznab's `offset`/`limit`. APIBay, Nyaa/Sukebei RSS, and configured RSS/Atom URLs are fetched once because they do not expose a reliable compatible pagination mechanism. Pagination stops early when a provider returns an empty/final page; the per-provider timeout covers all requested pages.
+
+Bitsearch's anonymous tier currently allows 200 requests per IP per day. To use an account key, set `api_key_env` on that provider; the key is sent in the `x-api-key` header and never included in diagnostics.
 
 ### Sukebei: Nyaa NSFW
 
@@ -171,7 +175,7 @@ url = "https://example.org/torrents.rss"
 
 The URL above is a placeholder; substitute a real RSS or Atom feed. The parser understands magnet links and enclosures in RSS items and Atom entries, plus Nyaa/Torznab extension fields. A bare `.torrent` download link is never fetched to compute a hash. Plain Newznab NZB results can't become BitTorrent magnets.
 
-Protocol references: [Knaben API](https://knaben.org/api/v1/), [Nyaa RSS template](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml), [Torznab spec](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html).
+Protocol references: [Knaben API](https://knaben.org/api/v1/), [Bitsearch API](https://bitsearch.eu/api), [Nyaa RSS template](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml), [Torznab spec](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html).
 
 ## JSON Results & Aggregation Rules
 
@@ -301,7 +305,7 @@ fi
 
 Eight providers run concurrently by default (configurable from 1 to 64), with a 15 s default timeout per provider and an 8 MiB cap per response. Extra sources queue. `--timeout` covers one provider and all of its requested pages; use `--deadline` when the whole command needs a bound.
 
-Each source reads one page by default. `--pages` can request up to 20 pages from Knaben and Torznab; Nyaa/Sukebei RSS and generic RSS/Atom feeds are fetched once. `--limit` caps final output only and may return fewer rows than asked. Public source availability and completeness depend on upstream services.
+Each source reads one page by default. `--pages` can request up to 20 pages from Knaben, Bitsearch, and Torznab; APIBay, Nyaa/Sukebei RSS, and generic RSS/Atom feeds are fetched once. `--limit` caps final output only and may return fewer rows than asked. Public source availability, rate limits, and completeness depend on upstream services.
 
 No TUI, MCP, HTML scraping, DHT lookup, or downloads.
 
