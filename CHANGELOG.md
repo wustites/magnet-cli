@@ -1,0 +1,31 @@
+# Changelog
+
+All notable changes to this project are documented in this file. The format is
+based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases
+follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Unreleased
+
+### Added
+
+- Optional provider pagination with `search --pages`.
+- Configurable provider concurrency and an optional total search deadline.
+- Atom feed parsing for configured feed providers.
+- A documented Rust 1.88 minimum supported version, dependency updates, and RustSec CI.
+
+### Changed
+
+- Provider configuration now rejects `api_key_env` outside Torznab entries and
+  invalid environment variable names.
+
+## 0.1.0 - 2026-09-09
+
+### Added
+
+- Concurrent Nyaa, Knaben, Sukebei, Torznab, and RSS search.
+- BTIH normalization, deduplication, tracker merging, filtering, and sorting.
+- JSON, JSONL, magnet-only, and human-readable output.
+- Atomic last-search snapshots with local `get` and `resolve` commands.
+
+[Unreleased]: https://github.com/wustites/magnet-cli/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/wustites/magnet-cli/releases/tag/v0.1.0

@@ -2,36 +2,58 @@ use super::*;
 use crate::model::{parse_date, parse_size};
 use roxmltree::Node;
 
-pub async fn search(provider: &HttpProvider, query: &str) -> Result<Vec<Torrent>, ProviderError> {
+pub async fn search(
+    provider: &HttpProvider,
+    query: &str,
+    pages: u16,
+) -> Result<Vec<Torrent>, ProviderError> {
     let config = &provider.config;
-    let mut url = Url::parse(&config.url).map_err(|_| ProviderError::data("invalid feed URL"))?;
-    if !matches!(config.kind, Kind::Rss) {
-        let retained: Vec<_> = url
-            .query_pairs()
-            .filter(|(k, _)| {
-                !matches!(k.as_ref(), "q" | "t" | "page")
-                    && !(k == "apikey" && config.api_key_env.is_some())
-            })
-            .map(|(k, v)| (k.into_owned(), v.into_owned()))
-            .collect();
-        url.set_query(None);
-        url.query_pairs_mut().extend_pairs(retained);
-        let mut pairs = url.query_pairs_mut();
-        pairs.append_pair("q", query);
-        if matches!(config.kind, Kind::Nyaa | Kind::Sukebei) {
-            pairs.append_pair("page", "rss");
-        } else {
-            pairs.append_pair("t", "search");
-            pairs.append_pair("extended", "1");
-            if let Some(var) = &config.api_key_env {
-                let key = std::env::var(var)
-                    .map_err(|_| ProviderError::data("API key environment variable is not set"))?;
-                pairs.append_pair("apikey", &key);
+    let requested_pages = if matches!(config.kind, Kind::Torznab) {
+        pages.max(1)
+    } else {
+        1
+    };
+    let mut results = Vec::new();
+    for page in 0..requested_pages {
+        let mut url =
+            Url::parse(&config.url).map_err(|_| ProviderError::data("invalid feed URL"))?;
+        if !matches!(config.kind, Kind::Rss) {
+            let retained: Vec<_> = url
+                .query_pairs()
+                .filter(|(k, _)| {
+                    !matches!(k.as_ref(), "q" | "t" | "page" | "offset" | "limit")
+                        && !(k == "apikey" && config.api_key_env.is_some())
+                })
+                .map(|(k, v)| (k.into_owned(), v.into_owned()))
+                .collect();
+            url.set_query(None);
+            url.query_pairs_mut().extend_pairs(retained);
+            let mut pairs = url.query_pairs_mut();
+            pairs.append_pair("q", query);
+            if matches!(config.kind, Kind::Nyaa | Kind::Sukebei) {
+                pairs.append_pair("page", "rss");
+            } else {
+                const PAGE_SIZE: u32 = 100;
+                pairs.append_pair("t", "search");
+                pairs.append_pair("extended", "1");
+                pairs.append_pair("limit", &PAGE_SIZE.to_string());
+                pairs.append_pair("offset", &(u32::from(page) * PAGE_SIZE).to_string());
+                if let Some(var) = &config.api_key_env {
+                    let key = std::env::var(var).map_err(|_| {
+                        ProviderError::data("API key environment variable is not set")
+                    })?;
+                    pairs.append_pair("apikey", &key);
+                }
             }
         }
+        let bytes = body(provider.client.get(url)).await?;
+        let rows = parse(&bytes, &config.name)?;
+        let empty = rows.is_empty();
+        results.extend(rows);
+        if empty {
+            break;
+        }
     }
-    let bytes = body(provider.client.get(url)).await?;
-    let mut results = parse(&bytes, &config.name)?;
     if matches!(config.kind, Kind::Rss) {
         let terms: Vec<_> = query
             .to_lowercase()
@@ -62,31 +84,59 @@ fn field<'a>(item: Node<'a, 'a>, name: &str) -> Option<&'a str> {
                 .and_then(|n| n.attribute("value"))
         })
 }
+fn link_href<'a>(item: Node<'a, 'a>, relation: Option<&str>) -> Option<&'a str> {
+    item.children()
+        .filter(|n| n.is_element() && n.tag_name().name().eq_ignore_ascii_case("link"))
+        .find(|n| {
+            relation.is_none_or(|expected| {
+                n.attribute("rel")
+                    .is_some_and(|actual| actual.eq_ignore_ascii_case(expected))
+            })
+        })
+        .and_then(|n| n.attribute("href"))
+}
 pub fn parse(bytes: &[u8], source: &str) -> Result<Vec<Torrent>, ProviderError> {
     let xml = std::str::from_utf8(bytes).map_err(|_| ProviderError::data("feed is not UTF-8"))?;
     let doc =
-        roxmltree::Document::parse(xml).map_err(|_| ProviderError::data("invalid RSS XML"))?;
-    if doc.root_element().tag_name().name() != "rss"
-        || !doc
-            .root_element()
+        roxmltree::Document::parse(xml).map_err(|_| ProviderError::data("invalid RSS/Atom XML"))?;
+    let root = doc.root_element();
+    let rss = root.tag_name().name().eq_ignore_ascii_case("rss")
+        && root
             .children()
-            .any(|n| n.has_tag_name("channel"))
-    {
+            .any(|n| n.tag_name().name().eq_ignore_ascii_case("channel"));
+    let atom = root.tag_name().name().eq_ignore_ascii_case("feed");
+    if !rss && !atom {
         return Err(ProviderError::data(
-            "expected an RSS channel; provider may have returned an API error",
+            "expected an RSS channel or Atom feed; provider may have returned an API error",
         ));
     }
     Ok(doc
         .descendants()
-        .filter(|n| n.has_tag_name("item"))
+        .filter(|n| {
+            n.is_element()
+                && matches!(
+                    n.tag_name().name().to_ascii_lowercase().as_str(),
+                    "item" | "entry"
+                )
+        })
         .filter_map(|item| {
             let title = field(item, "title")?.to_owned();
-            let enclosure = item.children().find(|n| n.has_tag_name("enclosure"));
+            let enclosure = item.children().find(|n| {
+                n.is_element()
+                    && (n.tag_name().name().eq_ignore_ascii_case("enclosure")
+                        || (n.tag_name().name().eq_ignore_ascii_case("link")
+                            && n.attribute("rel")
+                                .is_some_and(|rel| rel.eq_ignore_ascii_case("enclosure"))))
+            });
             let magnet = [
                 field(item, "magneturl"),
                 field(item, "link"),
+                link_href(item, Some("enclosure")),
+                link_href(item, None),
                 enclosure.and_then(|n| n.attribute("url")),
+                enclosure.and_then(|n| n.attribute("href")),
                 field(item, "guid"),
+                field(item, "id"),
             ]
             .into_iter()
             .flatten()
@@ -115,16 +165,21 @@ pub fn parse(bytes: &[u8], source: &str) -> Result<Vec<Torrent>, ProviderError> 
                 info_hash: field(item, "infohash")
                     .filter(|s| !s.is_empty())
                     .map(str::to_owned),
-                published_at: field(item, "pubDate").and_then(parse_date),
                 detail_url: [
                     field(item, "comments"),
                     field(item, "guid"),
                     field(item, "link"),
+                    link_href(item, Some("alternate")),
+                    link_href(item, None),
                 ]
                 .into_iter()
                 .flatten()
                 .find(|v| v.starts_with("https://") || v.starts_with("http://"))
                 .map(str::to_owned),
+                published_at: field(item, "pubDate")
+                    .or_else(|| field(item, "published"))
+                    .or_else(|| field(item, "updated"))
+                    .and_then(parse_date),
                 sources: vec![source.into()],
                 ..Default::default()
             })
@@ -147,5 +202,16 @@ mod tests {
     fn rejects_error_and_html() {
         assert!(parse(b"<error code='100' description='secret'/>", "test").is_err());
         assert!(parse(b"<html/>", "test").is_err());
+    }
+    #[test]
+    fn parses_atom_entries_and_magnet_links() {
+        let xml = br#"<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Ubuntu Atom</title><id>tag:example,1</id><published>2026-01-02T03:04:05Z</published><link rel="alternate" href="https://example.org/1"/><link rel="enclosure" href="magnet:?xt=urn:btih:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" length="42"/></entry></feed>"#;
+        let rows = parse(xml, "atom").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].title, "Ubuntu Atom");
+        assert_eq!(rows[0].size, Some(42));
+        assert_eq!(rows[0].detail_url.as_deref(), Some("https://example.org/1"));
+        assert!(rows[0].published_at.is_some());
+        assert!(rows[0].magnet.as_deref().unwrap().starts_with("magnet:"));
     }
 }

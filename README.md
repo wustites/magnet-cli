@@ -79,6 +79,9 @@ See `magnet --help` or `magnet search --help` for full command help.
 | `--sort seeds\|size\|date\|title` | `seeds` | First three descending, unknowns last; title ascending |
 | `--limit N` | `20` | Cap on final aggregated results, must be > 0 |
 | `--timeout SECONDS` | `15` | Per-provider timeout, 1–300 seconds |
+| `--concurrency N` | `8` | Providers searched concurrently, 1–64 |
+| `--deadline SECONDS` | none | Total search deadline, including queued providers, 1–3600 seconds |
+| `--pages N` | `1` | Pages requested from providers with pagination support, 1–20 |
 
 `--json`, `--jsonl`, `--magnet` are mutually exclusive. Without them you get a table; unknown seeders, size, and date show as `?`, sizes render as decimal GB, AGE counts days.
 
@@ -105,7 +108,7 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected.
+Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected. `api_key_env` is accepted only for Torznab and must be a valid environment variable name.
 
 | `kind` | Request | Search behavior |
 | --- | --- | --- |
@@ -113,7 +116,9 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 | `sukebei` | HTTP GET RSS | Nyaa RSS protocol, adds `page=rss` and `q` |
 | `knaben` | HTTP POST JSON | Title search against the configured API URL, 150 rows per request |
 | `torznab` | HTTP GET RSS/XML | Adds `t=search`, `q`, `extended=1`, optional API key |
-| `rss` | HTTP GET RSS | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
+| `rss` | HTTP GET RSS/Atom | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
+
+`--pages` uses Knaben's `from` offset and Torznab's `offset`/`limit`. Nyaa/Sukebei RSS and configured RSS/Atom URLs are fetched once because those feeds do not expose a reliable standard search pagination mechanism. Pagination stops early when a provider returns an empty page; the per-provider timeout covers all requested pages.
 
 ### Sukebei: Nyaa NSFW
 
@@ -164,7 +169,7 @@ kind = "rss"
 url = "https://example.org/torrents.rss"
 ```
 
-The URL above is a placeholder; substitute a real RSS feed. The parser understands magnet links and enclosures in RSS items plus Nyaa/Torznab extension fields. A bare `.torrent` download link is never fetched to compute a hash. Plain Newznab NZB results can't become BitTorrent magnets; Atom feeds are currently unsupported.
+The URL above is a placeholder; substitute a real RSS or Atom feed. The parser understands magnet links and enclosures in RSS items and Atom entries, plus Nyaa/Torznab extension fields. A bare `.torrent` download link is never fetched to compute a hash. Plain Newznab NZB results can't become BitTorrent magnets.
 
 Protocol references: [Knaben API](https://knaben.org/api/v1/), [Nyaa RSS template](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml), [Torznab spec](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html).
 
@@ -294,9 +299,9 @@ fi
 
 ## Current Limits
 
-At most 8 providers run concurrently, 15 s default timeout each, 8 MiB cap per response. Extra sources queue, so `--timeout` is not a total command deadline.
+Eight providers run concurrently by default (configurable from 1 to 64), with a 15 s default timeout per provider and an 8 MiB cap per response. Extra sources queue. `--timeout` covers one provider and all of its requested pages; use `--deadline` when the whole command needs a bound.
 
-Each source reads one page or feed (Knaben asks for 150 rows), never auto-paginates; `--limit` caps final output only and may return fewer rows than asked. Public source availability and completeness depend on upstream services.
+Each source reads one page by default. `--pages` can request up to 20 pages from Knaben and Torznab; Nyaa/Sukebei RSS and generic RSS/Atom feeds are fetched once. `--limit` caps final output only and may return fewer rows than asked. Public source availability and completeness depend on upstream services.
 
 No TUI, MCP, HTML scraping, DHT lookup, or downloads.
 
@@ -316,7 +321,7 @@ src/
     └── knaben.rs       # Knaben JSON API
 ```
 
-The library exports `Provider`, `Torrent`, and the search engine for new providers or other front ends. Adding a source via the library means implementing `Provider`; to support a new `kind` in CLI TOML configs, also update the `Kind` and `HttpProvider` dispatch.
+The crate root re-exports `Provider`, `Torrent`, `SearchOptions`, and both search entry points for new providers or other front ends. Implement `Provider::search` for a basic source and optionally override `search_pages`; call `search` for backward-compatible defaults or `search_with_options` for concurrency, deadline, and pagination controls. To support a new `kind` in CLI TOML configs, also update `Kind` and `HttpProvider` dispatch.
 
 ```bash
 cargo fmt --check

@@ -141,3 +141,68 @@ async fn completion_order_does_not_change_preferred_title() {
     assert_eq!(report.results.len(), 1);
     assert_eq!(report.results[0].title, "first");
 }
+
+#[tokio::test]
+async fn total_deadline_keeps_completed_results_and_cancels_the_rest() {
+    use magnet_cli::{providers::Provider, search::search_with_options};
+    use std::time::Duration;
+    let providers: Vec<Box<dyn Provider>> = vec![
+        Box::new(Stub {
+            name: "good",
+            failure: false,
+            delay: Duration::ZERO,
+        }),
+        Box::new(Stub {
+            name: "slow",
+            failure: false,
+            delay: Duration::from_secs(10),
+        }),
+    ];
+    let report = search_with_options(
+        &providers,
+        "ubuntu",
+        magnet_cli::search::SearchOptions {
+            provider_timeout: Duration::from_secs(20),
+            concurrency: 1,
+            deadline: Some(Duration::from_millis(50)),
+            pages: 1,
+        },
+    )
+    .await;
+    assert_eq!(report.successes, 1);
+    assert_eq!(report.results.len(), 1);
+    assert_eq!(report.results[0].title, "good");
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning == "slow: total search deadline exceeded")
+    );
+}
+
+#[test]
+fn cache_round_trip_replaces_old_snapshot_and_reports_corruption() {
+    use magnet_cli::cache;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("nested/cache.json");
+    let first = Torrent {
+        id: 1,
+        title: "first".into(),
+        ..Default::default()
+    };
+    let second = Torrent {
+        id: 1,
+        title: "second".into(),
+        ..Default::default()
+    };
+    cache::save(&path, &[first]).unwrap();
+    cache::save(&path, &[second]).unwrap();
+    assert_eq!(cache::read(&path).unwrap()[0].title, "second");
+    std::fs::write(&path, "not json").unwrap();
+    assert!(
+        cache::read(&path)
+            .unwrap_err()
+            .to_string()
+            .contains("invalid")
+    );
+}

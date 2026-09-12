@@ -1,5 +1,8 @@
 name: Publish
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -63,6 +66,12 @@ jobs:
       - name: Publish
         if: github.event_name == 'push'
         run: cargo publish --locked
+
+      - name: Create GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes
 
       - name: Clean packaged copy
         if: always()

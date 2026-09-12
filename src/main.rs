@@ -159,7 +159,17 @@ async fn run(cli: Cli) -> Result<u8> {
                     }) as Box<dyn Provider>
                 })
                 .collect();
-            let mut report = search::search(&providers, &args.query, timeout).await;
+            let mut report = search::search_with_options(
+                &providers,
+                &args.query,
+                search::SearchOptions {
+                    provider_timeout: timeout,
+                    concurrency: args.concurrency.into(),
+                    deadline: args.deadline.map(Duration::from_secs),
+                    pages: args.pages,
+                },
+            )
+            .await;
             for warning in &report.warnings {
                 eprintln!("magnet: {warning}");
             }

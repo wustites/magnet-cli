@@ -17,7 +17,7 @@ url = "https://api.knaben.org/v1"
 # url = "http://localhost:9117/api/v2.0/indexers/all/results/torznab/api"
 # api_key_env = "TORZNAB_API_KEY"
 
-# RSS 原样请求 URL，在本地按标题匹配所有搜索词（忽略大小写）。
+# RSS/Atom 原样请求 URL，在本地按标题匹配所有搜索词（忽略大小写）。
 # example.org 是占位地址，需替换为实际 feed URL。
 # [[providers]]
 # name = "linux"

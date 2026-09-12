@@ -5,11 +5,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Returns the platform-appropriate path for the last-search snapshot.
 pub fn default_path() -> PathBuf {
     directories::ProjectDirs::from("", "", "magnet")
         .map(|p| p.cache_dir().join("last-search.json"))
         .unwrap_or_else(|| PathBuf::from(".magnet-last-search.json"))
 }
+/// Atomically replaces `path` with a JSON snapshot of `rows`.
 pub fn save(path: &Path, rows: &[Torrent]) -> Result<()> {
     let parent = path
         .parent()
@@ -24,6 +26,7 @@ pub fn save(path: &Path, rows: &[Torrent]) -> Result<()> {
     temp.persist(path).context("cannot replace search cache")?;
     Ok(())
 }
+/// Reads and validates a JSON search snapshot.
 pub fn read(path: &Path) -> Result<Vec<Torrent>> {
     let file =
         std::fs::File::open(path).context("no readable search cache; run magnet search first")?;

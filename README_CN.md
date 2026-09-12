@@ -79,6 +79,9 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 | `--sort seeds\|size\|date\|title` | `seeds` | 前三种降序、未知值排最后；标题升序 |
 | `--limit N` | `20` | 最终聚合结果的上限，必须大于 0 |
 | `--timeout SECONDS` | `15` | 每个 Provider 的超时，范围 1–300 秒 |
+| `--concurrency N` | `8` | 同时搜索的 Provider 数量，范围 1–64 |
+| `--deadline SECONDS` | 不限制 | 整次搜索的总截止时间（包含排队），范围 1–3600 秒 |
+| `--pages N` | `1` | 向支持分页的 Provider 请求的页数，范围 1–20 |
 
 `--json`、`--jsonl`、`--magnet` 互斥。未选择时输出表格，未知的 seeders、大小和日期显示为 `?`，大小显示为十进制 GB，AGE 以天计。
 
@@ -105,7 +108,7 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。
+每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。`api_key_env` 仅适用于 Torznab，且必须是合法的环境变量名。
 
 | `kind` | 请求方式 | 搜索行为 |
 | --- | --- | --- |
@@ -113,7 +116,9 @@ magnet --config config.toml search "ubuntu" --json
 | `sukebei` | HTTP GET RSS | 使用 Nyaa RSS 协议，添加 `page=rss` 和 `q` |
 | `knaben` | HTTP POST JSON | 向配置的 API URL 提交标题搜索，单次请求 150 条 |
 | `torznab` | HTTP GET RSS/XML | 添加 `t=search`、`q`、`extended=1`，可带 API key |
-| `rss` | HTTP GET RSS | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
+| `rss` | HTTP GET RSS/Atom | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
+
+`--pages` 分别使用 Knaben 的 `from` 偏移和 Torznab 的 `offset`/`limit`。Nyaa/Sukebei RSS 与通用 RSS/Atom 没有可靠的标准搜索分页机制，因此只请求一次。Provider 返回空页时提前停止；单 Provider 超时包含其请求的所有页面。
 
 ### Sukebei：Nyaa NSFW
 
@@ -164,7 +169,7 @@ kind = "rss"
 url = "https://example.org/torrents.rss"
 ```
 
-上面的 URL 是占位示例，需替换为实际 RSS feed。解析器支持 RSS item 中的 magnet 链接、enclosure，以及 Nyaa/Torznab 扩展字段。仅有 `.torrent` 下载链接时，不会自动下载文件计算 hash。普通 Newznab NZB 结果不能转换成 BitTorrent magnet；当前不支持 Atom feed。
+上面的 URL 是占位示例，需替换为实际 RSS 或 Atom feed。解析器支持 RSS item 和 Atom entry 中的 magnet 链接、enclosure，以及 Nyaa/Torznab 扩展字段。仅有 `.torrent` 下载链接时，不会自动下载文件计算 hash。普通 Newznab NZB 结果不能转换成 BitTorrent magnet。
 
 协议参考：[Knaben API](https://knaben.org/api/v1/)、[Nyaa RSS 模板](https://github.com/nyaadevs/nyaa/blob/master/nyaa/templates/rss.xml)、[Torznab 规范](https://torznab.github.io/spec-1.3-draft/torznab/Specification-v1.3.html)。
 
@@ -294,9 +299,9 @@ fi
 
 ## 当前限制
 
-最多 8 个 Provider 并发执行，每个源默认 15 秒超时，单次响应上限 8 MiB。超过 8 个源会排队，因此 `--timeout` 不是整个命令的总时间上限。
+默认同时执行 8 个 Provider（可配置为 1–64），每个源默认 15 秒超时，单次响应上限 8 MiB。更多源会排队；`--timeout` 覆盖一个 Provider 及其所有请求页，需要限制整条命令时使用 `--deadline`。
 
-每个源只读取一页或一次 feed（Knaben 请求 150 条），不自动翻页；`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性与结果完整性取决于上游服务。
+每个源默认读取一页。`--pages` 可为 Knaben 和 Torznab 请求最多 20 页；Nyaa/Sukebei RSS 与通用 RSS/Atom 只请求一次。`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性与结果完整性取决于上游服务。
 
 当前未实现 TUI、MCP、HTML 抓取、DHT 查询或下载功能。
 
@@ -316,7 +321,7 @@ src/
     └── knaben.rs       # Knaben JSON API
 ```
 
-library 导出 `Provider`、`Torrent` 和搜索引擎，可供新 Provider 或其他入口复用。通过 library 添加自定义源时实现 `Provider` trait；要让 CLI 的 TOML 配置支持新的 `kind`，还需更新 `Kind` 和 `HttpProvider` 分发逻辑。
+crate 根目录重新导出 `Provider`、`Torrent`、`SearchOptions` 和两个搜索入口，可供新 Provider 或其他前端复用。基础自定义源只需实现 `Provider::search`，支持分页时可覆盖 `search_pages`；兼容旧行为时调用 `search`，需要并发、总截止时间和分页控制时调用 `search_with_options`。要让 CLI 的 TOML 配置支持新的 `kind`，还需更新 `Kind` 和 `HttpProvider` 分发逻辑。
 
 ```bash
 cargo fmt --check

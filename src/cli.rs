@@ -65,6 +65,15 @@ pub struct SearchArgs {
     pub limit: u32,
     #[arg(long, default_value = "15", value_parser = clap::value_parser!(u64).range(1..=300))]
     pub timeout: u64,
+    /// Maximum number of provider requests running at once
+    #[arg(long, default_value = "8", value_parser = clap::value_parser!(u8).range(1..=64))]
+    pub concurrency: u8,
+    /// Total command deadline in seconds, including queued providers
+    #[arg(long, value_parser = clap::value_parser!(u64).range(1..=3600))]
+    pub deadline: Option<u64>,
+    /// Pages to request from providers that support pagination
+    #[arg(long, default_value = "1", value_parser = clap::value_parser!(u16).range(1..=20))]
+    pub pages: u16,
 }
 #[derive(Clone, Copy, ValueEnum)]
 pub enum Sort {

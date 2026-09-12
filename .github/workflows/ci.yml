@@ -43,10 +43,44 @@ jobs:
       - name: Test
         run: cargo test --locked
 
+  msrv:
+    name: Minimum Rust 1.88
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install minimum Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.88"
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        run: cargo check --locked --all-targets
+
+  audit:
+    name: RustSec audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Audit dependencies
+        uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   package:
     name: Package
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, msrv, audit]
 
     steps:
       - name: Checkout

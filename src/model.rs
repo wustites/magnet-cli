@@ -4,20 +4,33 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+/// A normalized torrent search result.
 pub struct Torrent {
+    /// One-based position in a saved search, or zero before assignment.
     pub id: usize,
+    /// Human-readable torrent title.
     pub title: String,
+    /// Lowercase hexadecimal BitTorrent v1 infohash.
     pub info_hash: Option<String>,
+    /// Canonical magnet URI rebuilt from the normalized fields.
     pub magnet: Option<String>,
+    /// Content size in bytes.
     pub size: Option<u64>,
+    /// Reported seed count.
     pub seeders: Option<u32>,
+    /// Reported leecher count.
     pub leechers: Option<u32>,
+    /// Publication time normalized to UTC.
     pub published_at: Option<DateTime<Utc>>,
+    /// Provider names contributing to this result.
     pub sources: Vec<String>,
+    /// Optional provider detail page.
     pub detail_url: Option<String>,
+    /// Tracker announce URLs included in the magnet.
     pub trackers: Vec<String>,
 }
 
+/// Normalizes a hexadecimal or base32 BitTorrent v1 infohash.
 pub fn normalize_hash(value: &str) -> Result<String> {
     let value = value.trim();
     if value.len() == 40 && value.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -32,6 +45,7 @@ pub fn normalize_hash(value: &str) -> Result<String> {
 }
 
 impl Torrent {
+    /// Validates and reconciles the explicit hash and magnet, then rebuilds the magnet.
     pub fn normalize(&mut self) -> Result<()> {
         let explicit = self.info_hash.as_deref().map(normalize_hash).transpose()?;
         let mut from_magnet = None;
@@ -68,6 +82,7 @@ impl Torrent {
         Ok(())
     }
 
+    /// Rebuilds the magnet from the current hash, title, and trackers.
     pub fn refresh_magnet(&mut self) {
         self.trackers.sort();
         self.trackers.dedup();
@@ -86,6 +101,7 @@ impl Torrent {
     }
 }
 
+/// Parses a byte count with optional decimal or binary size units.
 pub fn parse_size(raw: &str) -> Result<u64, String> {
     let raw = raw.trim();
     if let Ok(bytes) = raw.parse::<u64>() {
@@ -117,6 +133,7 @@ pub fn parse_size(raw: &str) -> Result<u64, String> {
     Ok(bytes as u64)
 }
 
+/// Parses an RFC 3339 or RFC 2822 timestamp and converts it to UTC.
 pub fn parse_date(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
         .or_else(|_| DateTime::parse_from_rfc2822(raw))

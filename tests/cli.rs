@@ -3,6 +3,7 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
     process::{Command, Output},
+    sync::{Arc, Mutex},
     thread,
 };
 
@@ -40,6 +41,44 @@ fn server(body: String, expected: &'static str) -> (String, thread::JoinHandle<(
         .unwrap();
     });
     (url, handle)
+}
+fn paged_server(bodies: Vec<String>) -> (String, Arc<Mutex<Vec<String>>>, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&requests);
+    let handle = thread::spawn(move || {
+        for body in bodies {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
+            let mut request = Vec::new();
+            let mut buffer = [0u8; 4096];
+            loop {
+                let n = socket.read(&mut buffer).unwrap();
+                if n == 0 {
+                    break;
+                }
+                request.extend_from_slice(&buffer[..n]);
+                if request.windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            captured
+                .lock()
+                .unwrap()
+                .push(String::from_utf8_lossy(&request).into_owned());
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .unwrap();
+        }
+    });
+    (url, requests, handle)
 }
 fn run(dir: &std::path::Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_magnet"))
@@ -160,6 +199,9 @@ fn argument_errors_and_offline_resolver() {
     for args in [
         vec!["search", "x", "--json", "--magnet"],
         vec!["search", "x", "--limit", "0"],
+        vec!["search", "x", "--concurrency", "0"],
+        vec!["search", "x", "--deadline", "0"],
+        vec!["search", "x", "--pages", "0"],
         vec!["get", "0"],
         vec!["resolve", "bad"],
     ] {
@@ -278,4 +320,76 @@ fn builtin_sukebei_participates_in_default_search() {
             .count(),
         3
     );
+}
+
+#[test]
+fn torznab_paginates_with_offsets() {
+    let item =
+        |title: &str| format!("<rss><channel><item><title>{title}</title></item></channel></rss>");
+    let (url, requests, handle) = paged_server(vec![item("First"), item("Second")]);
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!("[[providers]]\nname='local'\nkind='torznab'\nurl='{url}'"),
+    )
+    .unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "linux",
+            "--pages",
+            "2",
+            "--json",
+        ],
+    );
+    handle.join().unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(rows.as_array().unwrap().len(), 2);
+    let requests = requests.lock().unwrap();
+    assert!(
+        requests[0].contains("offset=0&limit=100") || requests[0].contains("limit=100&offset=0")
+    );
+    assert!(requests[1].contains("offset=100"));
+}
+
+#[test]
+fn jsonl_sort_limit_and_snapshot_are_consistent() {
+    let (url, handle) = server(
+        "<rss><channel><item><title>Zulu Linux</title></item><item><title>Alpha Linux</title></item></channel></rss>".into(),
+        "GET /",
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!("[[providers]]\nname='feed'\nkind='rss'\nurl='{url}'"),
+    )
+    .unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "linux",
+            "--sort",
+            "title",
+            "--limit",
+            "1",
+            "--jsonl",
+        ],
+    );
+    handle.join().unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let row: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(row["title"], "Alpha Linux");
+    let cached = run(dir.path(), &["get", "1", "--json"]);
+    assert_eq!(cached.status.code(), Some(0));
+    let cached_row: Value = serde_json::from_slice(&cached.stdout).unwrap();
+    assert_eq!(cached_row["title"], "Alpha Linux");
 }
