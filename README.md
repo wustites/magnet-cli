@@ -115,12 +115,14 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 | `nyaa` | HTTP GET RSS | Adds `page=rss` and query param `q` |
 | `sukebei` | HTTP GET RSS | Nyaa RSS protocol, adds `page=rss` and `q` |
 | `knaben` | HTTP POST JSON | Title search against the configured API URL, 150 rows per request |
-| `apibay` | HTTP GET JSON | Searches APIBay across all categories; returns up to the API's fixed result set |
+| `apibay` | HTTP GET JSON | Searches APIBay across all categories; returns up to the API's fixed result set. For non-ASCII queries, the CLI filters APIBay fallback results locally by title |
 | `bitsearch` | HTTP GET JSON | Searches Bitsearch, 100 rows per page; optional API key header |
 | `torznab` | HTTP GET RSS/XML | Adds `t=search`, `q`, `extended=1`, optional API key |
 | `rss` | HTTP GET RSS/Atom | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
 
 `--pages` uses Knaben's `from` offset, Bitsearch's `page`, and Torznab's `offset`/`limit`. APIBay, Nyaa/Sukebei RSS, and configured RSS/Atom URLs are fetched once because they do not expose a reliable compatible pagination mechanism. Pagination stops early when a provider returns an empty/final page; the per-provider timeout covers all requested pages.
+
+API Bay may return popular fallback results instead of matches for non-ASCII queries such as CJK names. The CLI removes those rows by requiring every query term to occur in the returned title. Use Knaben or Bitsearch when searching CJK content for better coverage.
 
 Bitsearch's anonymous tier currently allows 200 requests per IP per day. To use an account key, set `api_key_env` on that provider; the key is sent in the `x-api-key` header and never included in diagnostics.
 

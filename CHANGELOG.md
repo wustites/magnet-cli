@@ -6,6 +6,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+- Filter unrelated APIBay fallback rows for non-ASCII/CJK queries and document the provider limitation.
+
 ## 0.2.0 - 2026-09-12
 
 ### Added

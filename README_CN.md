@@ -115,12 +115,14 @@ magnet --config config.toml search "ubuntu" --json
 | `nyaa` | HTTP GET RSS | 添加 `page=rss` 和搜索参数 `q` |
 | `sukebei` | HTTP GET RSS | 使用 Nyaa RSS 协议，添加 `page=rss` 和 `q` |
 | `knaben` | HTTP POST JSON | 向配置的 API URL 提交标题搜索，单次请求 150 条 |
-| `apibay` | HTTP GET JSON | 在 APIBay 的全部分类中搜索；读取 API 固定返回的结果集 |
+| `apibay` | HTTP GET JSON | 在 APIBay 的全部分类中搜索；读取 API 固定返回的结果集。对于非 ASCII 查询，CLI 会按标题在本地过滤 APIBay 的兜底结果 |
 | `bitsearch` | HTTP GET JSON | 搜索 Bitsearch，每页 100 条；可选 API key 请求头 |
 | `torznab` | HTTP GET RSS/XML | 添加 `t=search`、`q`、`extended=1`，可带 API key |
 | `rss` | HTTP GET RSS/Atom | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
 
 `--pages` 分别使用 Knaben 的 `from` 偏移、Bitsearch 的 `page` 和 Torznab 的 `offset`/`limit`。APIBay、Nyaa/Sukebei RSS 与通用 RSS/Atom 没有可靠的兼容分页机制，因此只请求一次。Provider 返回空页或末页时提前停止；单 Provider 超时包含其请求的所有页面。
+
+API Bay 对“苏畅”等非 ASCII/CJK 查询有时会返回热门兜底结果，而不是匹配项。CLI 会要求返回标题包含每个查询词，并在本地移除这些无关结果。搜索 CJK 内容时，建议同时启用 Knaben 或 Bitsearch，以获得更好的覆盖率。
 
 Bitsearch 匿名额度目前为每个 IP 每日 200 次。需要使用账号 API key 时，在该 Provider 上设置 `api_key_env`；密钥通过 `x-api-key` 请求头发送，不会出现在诊断信息中。
 
