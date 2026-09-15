@@ -163,6 +163,8 @@ Every provider accepts optional `default_search` (defaults to `true`). With `fal
 
 See the [Prowlarr integration guide](docs/prowlarr.md) for the local setup, Caddy reverse proxy, API key, and current test status. This project recommends `http://127.0.0.1:9696/3/api` on the same host.
 
+See the [bitmagnet integration guide](docs/bitmagnet.md) for the local DHT indexer deployment, Torznab endpoint, database status, and Prowlarr integration.
+
 Add the entry below to your config, or uncomment the matching entry in the example file. Replace `url` with the **full Torznab API endpoint** your service gives you, not the service homepage:
 
 ```toml
