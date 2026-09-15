@@ -15,6 +15,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Add opt-in DMHY keyword RSS search via `--source dmhy`.
+- Add opt-in Anime Garden JSON search via `--source animegarden`.
 
 ## 0.2.0 - 2026-09-12
 

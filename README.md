@@ -118,6 +118,7 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 | `apibay` | HTTP GET JSON | Searches APIBay across all categories; returns up to the API's fixed result set. For non-ASCII queries, the CLI filters APIBay fallback results locally by title |
 | `bitsearch` | HTTP GET JSON | Searches Bitsearch, 100 rows per page; optional API key header |
 | `dmhy` | HTTP GET RSS | DMHY keyword RSS search; opt in with `--source dmhy` |
+| `animegarden` | HTTP POST JSON | Anime Garden full-text anime search; opt in with `--source animegarden` |
 | `torznab` | HTTP GET RSS/XML | Adds `t=search`, `q`, `extended=1`, optional API key |
 | `rss` | HTTP GET RSS/Atom | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
 
@@ -126,6 +127,8 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 API Bay may return popular fallback results instead of matches for non-ASCII queries such as CJK names. The CLI removes those rows by requiring every query term to occur in the returned title. Use Knaben or Bitsearch when searching CJK content for better coverage.
 
 DMHY is available as an opt-in source with `--source dmhy`; it uses DMHY's public keyword RSS endpoint and is disabled in default aggregated searches.
+
+Anime Garden is available as an opt-in source with `--source animegarden`; it uses the project's public JSON API and is disabled in default aggregated searches.
 
 Bitsearch's anonymous tier currently allows 200 requests per IP per day. To use an account key, set `api_key_env` on that provider; the key is sent in the `x-api-key` header and never included in diagnostics.
 

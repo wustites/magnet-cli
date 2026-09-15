@@ -1,3 +1,4 @@
+mod animegarden;
 mod apibay;
 mod bitsearch;
 mod feeds;
@@ -28,6 +29,8 @@ pub enum Kind {
     Bitsearch,
     /// DMHY keyword RSS search.
     Dmhy,
+    /// Anime Garden full-text JSON search.
+    Animegarden,
     /// Torznab RSS API.
     Torznab,
     /// A fixed RSS or Atom feed filtered locally.
@@ -108,6 +111,13 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 name: "dmhy".into(),
                 kind: Kind::Dmhy,
                 url: "https://share.dmhy.org/topics/rss/rss.xml".into(),
+                api_key_env: None,
+                default_search: false,
+            },
+            ProviderConfig {
+                name: "animegarden".into(),
+                kind: Kind::Animegarden,
+                url: "https://api.animes.garden/resources".into(),
                 api_key_env: None,
                 default_search: false,
             },
@@ -211,6 +221,7 @@ impl Provider for HttpProvider {
             Kind::Knaben => knaben::search(self, query, pages).await,
             Kind::Apibay => apibay::search(self, query).await,
             Kind::Bitsearch => bitsearch::search(self, query, pages).await,
+            Kind::Animegarden => animegarden::search(self, query).await,
             _ => feeds::search(self, query, pages).await,
         }
     }
