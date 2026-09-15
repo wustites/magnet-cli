@@ -163,6 +163,41 @@ fn rss_filters_locally_and_empty_search_clears_snapshot() {
     assert_eq!(output.stdout, b"[]\n");
     assert_eq!(run(dir.path(), &["get", "1"]).status.code(), Some(1));
 }
+
+#[test]
+fn dmhy_search_sends_cjk_keyword_to_rss_endpoint() {
+    let hash = "c".repeat(40);
+    let (url, handle) = server(
+        format!(
+            r#"<rss><channel><item><title>[我推的孩子] OST</title><link>magnet:?xt=urn:btih:{hash}</link></item></channel></rss>"#
+        ),
+        "keyword=%E6%88%91%E6%8E%A8%E7%9A%84%E5%AD%A9%E5%AD%90",
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!("[[providers]]\nname='dmhy'\nkind='dmhy'\nurl='{url}'"),
+    )
+    .unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "我推的孩子",
+            "--source",
+            "dmhy",
+            "--json",
+        ],
+    );
+    handle.join().unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(rows[0]["title"], "[我推的孩子] OST");
+}
+
 #[test]
 fn api_errors_are_not_empty_successes_and_secrets_are_redacted() {
     let (url, handle) = server(
