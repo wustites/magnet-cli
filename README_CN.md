@@ -120,6 +120,7 @@ magnet --config config.toml search "ubuntu" --json
 | `dmhy` | HTTP GET RSS | 使用 DMHY 关键词 RSS 搜索；通过 `--source dmhy` 启用 |
 | `animegarden` | HTTP POST JSON | 使用 Anime Garden 全文动漫搜索；通过 `--source animegarden` 启用 |
 | `mikan` | HTTP GET RSS | 使用蜜柑计划关键词 RSS 搜索；通过 `--source mikan` 启用 |
+| `btgoogle` | HTTP GET HTML | 使用 BtGoogle 搜索结果页；通过 `--source btgoogle` 启用 |
 | `torznab` | HTTP GET RSS/XML | 添加 `t=search`、`q`、`extended=1`，可带 API key |
 | `rss` | HTTP GET RSS/Atom | 原样请求 URL，在本地按标题过滤；搜索词按空白拆分，忽略大小写且每个词都必须匹配 |
 
@@ -132,6 +133,8 @@ DMHY 是可选搜索源，使用 `--source dmhy` 启用。它调用 DMHY 公开�
 Anime Garden 是可选搜索源，使用 `--source animegarden` 启用。它调用项目提供的公开 JSON API，默认聚合搜索中不会自动启用。
 
 蜜柑计划（Mikan Project）是可选搜索源，使用 `--source mikan` 启用。它调用站点的关键词 RSS 搜索接口，默认聚合搜索中不会自动启用。
+
+BtGoogle 是可选搜索源，使用 `--source btgoogle` 启用。它调用站点的搜索结果接口，默认聚合搜索中不会自动启用。
 
 Bitsearch 匿名额度目前为每个 IP 每日 200 次。需要使用账号 API key 时，在该 Provider 上设置 `api_key_env`；密钥通过 `x-api-key` 请求头发送，不会出现在诊断信息中。
 

@@ -17,6 +17,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add opt-in DMHY keyword RSS search via `--source dmhy`.
 - Add opt-in Anime Garden JSON search via `--source animegarden`.
 - Add opt-in Mikan Project keyword RSS search via `--source mikan`.
+- Add opt-in BtGoogle HTML search via `--source btgoogle`.
 
 ## 0.2.0 - 2026-09-12
 

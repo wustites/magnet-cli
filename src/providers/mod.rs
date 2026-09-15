@@ -1,6 +1,7 @@
 mod animegarden;
 mod apibay;
 mod bitsearch;
+mod btgoogle;
 mod feeds;
 mod knaben;
 
@@ -27,6 +28,8 @@ pub enum Kind {
     Apibay,
     /// Bitsearch JSON API.
     Bitsearch,
+    /// BtGoogle HTML search endpoint.
+    Btgoogle,
     /// DMHY keyword RSS search.
     Dmhy,
     /// Anime Garden full-text JSON search.
@@ -108,6 +111,13 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 url: "https://bitsearch.eu/api/v1/search".into(),
                 api_key_env: None,
                 default_search: true,
+            },
+            ProviderConfig {
+                name: "btgoogle".into(),
+                kind: Kind::Btgoogle,
+                url: "https://btgoogle.com/partials/search/results".into(),
+                api_key_env: None,
+                default_search: false,
             },
             ProviderConfig {
                 name: "dmhy".into(),
@@ -230,6 +240,7 @@ impl Provider for HttpProvider {
             Kind::Knaben => knaben::search(self, query, pages).await,
             Kind::Apibay => apibay::search(self, query).await,
             Kind::Bitsearch => bitsearch::search(self, query, pages).await,
+            Kind::Btgoogle => btgoogle::search(self, query, pages).await,
             Kind::Animegarden => animegarden::search(self, query).await,
             _ => feeds::search(self, query, pages).await,
         }
