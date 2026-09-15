@@ -6,6 +6,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+- Archive APIBay from default aggregate searches; it remains available through
+  `--source apibay` for explicit testing.
+
 ## 0.2.1 - 2026-09-15
 
 ### Fixed

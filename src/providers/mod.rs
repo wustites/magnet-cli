@@ -103,7 +103,7 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 kind: Kind::Apibay,
                 url: "https://apibay.org/q.php".into(),
                 api_key_env: None,
-                default_search: true,
+                default_search: false,
             },
             ProviderConfig {
                 name: "bitsearch".into(),

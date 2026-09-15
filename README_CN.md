@@ -139,6 +139,8 @@ magnet search '子子西' --source btgoogle --json
 
 API Bay 对“苏畅”等非 ASCII/CJK 查询有时会返回热门兜底结果，而不是匹配项。CLI 会要求返回标题包含每个查询词，并在本地移除这些无关结果。搜索 CJK 内容时，建议同时启用 Knaben 或 Bitsearch，以获得更好的覆盖率。
 
+由于 CJK 覆盖不稳定，API Bay 已从默认聚合搜索中封存。需要时仍可通过 `--source apibay` 显式测试；DMHY 和 Mikan 也属于仅显式启用的源。
+
 DMHY 是可选搜索源，使用 `--source dmhy` 启用。它调用 DMHY 公开的关键词 RSS 接口，默认聚合搜索中不会自动启用。
 
 Anime Garden 是可选搜索源，使用 `--source animegarden` 启用。它调用项目提供的公开 JSON API，默认聚合搜索中不会自动启用。

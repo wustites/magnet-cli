@@ -128,6 +128,8 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 
 API Bay may return popular fallback results instead of matches for non-ASCII queries such as CJK names. The CLI removes those rows by requiring every query term to occur in the returned title. Use Knaben or Bitsearch when searching CJK content for better coverage.
 
+API Bay is archived from default aggregate searches because its CJK coverage is unreliable. Select it explicitly with `--source apibay` when needed; DMHY and Mikan are also opt-in sources.
+
 DMHY is available as an opt-in source with `--source dmhy`; it uses DMHY's public keyword RSS endpoint and is disabled in default aggregated searches.
 
 Anime Garden is available as an opt-in source with `--source animegarden`; it uses the project's public JSON API and is disabled in default aggregated searches.
