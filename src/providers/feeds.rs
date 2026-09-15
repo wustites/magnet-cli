@@ -31,12 +31,14 @@ pub async fn search(
             let mut pairs = url.query_pairs_mut();
             if matches!(config.kind, Kind::Dmhy) {
                 pairs.append_pair("keyword", query);
+            } else if matches!(config.kind, Kind::Mikan) {
+                pairs.append_pair("searchstr", query);
             } else {
                 pairs.append_pair("q", query);
             }
             if matches!(config.kind, Kind::Nyaa | Kind::Sukebei) {
                 pairs.append_pair("page", "rss");
-            } else if !matches!(config.kind, Kind::Dmhy) {
+            } else if !matches!(config.kind, Kind::Dmhy | Kind::Mikan) {
                 const PAGE_SIZE: u32 = 100;
                 pairs.append_pair("t", "search");
                 pairs.append_pair("extended", "1");

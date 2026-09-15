@@ -31,6 +31,8 @@ pub enum Kind {
     Dmhy,
     /// Anime Garden full-text JSON search.
     Animegarden,
+    /// Mikan Project keyword RSS search.
+    Mikan,
     /// Torznab RSS API.
     Torznab,
     /// A fixed RSS or Atom feed filtered locally.
@@ -118,6 +120,13 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 name: "animegarden".into(),
                 kind: Kind::Animegarden,
                 url: "https://api.animes.garden/resources".into(),
+                api_key_env: None,
+                default_search: false,
+            },
+            ProviderConfig {
+                name: "mikan".into(),
+                kind: Kind::Mikan,
+                url: "https://mikanani.me/RSS/Search".into(),
                 api_key_env: None,
                 default_search: false,
             },

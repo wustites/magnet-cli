@@ -199,6 +199,40 @@ fn dmhy_search_sends_cjk_keyword_to_rss_endpoint() {
 }
 
 #[test]
+fn mikan_search_sends_cjk_searchstr_to_rss_endpoint() {
+    let hash = "d".repeat(40);
+    let (url, handle) = server(
+        format!(
+            r#"<rss><channel><item><title>我推的孩子 第1集</title><link>magnet:?xt=urn:btih:{hash}</link></item></channel></rss>"#
+        ),
+        "searchstr=%E6%88%91%E6%8E%A8%E7%9A%84%E5%AD%A9%E5%AD%90",
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!("[[providers]]\nname='mikan'\nkind='mikan'\nurl='{url}'"),
+    )
+    .unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "我推的孩子",
+            "--source",
+            "mikan",
+            "--json",
+        ],
+    );
+    handle.join().unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(rows[0]["title"], "我推的孩子 第1集");
+}
+
+#[test]
 fn api_errors_are_not_empty_successes_and_secrets_are_redacted() {
     let (url, handle) = server(
         "<error code='100' description='secret-value'/>".into(),
