@@ -126,6 +126,17 @@ magnet --config config.toml search "ubuntu" --json
 
 `--pages` 分别使用 Knaben 的 `from` 偏移、Bitsearch 的 `page` 和 Torznab 的 `offset`/`limit`。APIBay、Nyaa/Sukebei RSS 与通用 RSS/Atom 没有可靠的兼容分页机制，因此只请求一次。Provider 返回空页或末页时提前停止；单 Provider 超时包含其请求的所有页面。
 
+### 搜索测试词
+
+`testdata/search-keywords.csv` 提供可复用的搜索测试词清单。第一项 `子子西` 是固定 CJK 回归词；测试多个源时应保留该词不变。CSV 的 `category`、`keyword` 和 `purpose` 列分别表示类别、搜索词和测试目的。
+
+例如只取固定回归词：
+
+```bash
+awk -F, 'NR > 1 { print $2; exit }' testdata/search-keywords.csv
+magnet search '子子西' --source btgoogle --json
+```
+
 API Bay 对“苏畅”等非 ASCII/CJK 查询有时会返回热门兜底结果，而不是匹配项。CLI 会要求返回标题包含每个查询词，并在本地移除这些无关结果。搜索 CJK 内容时，建议同时启用 Knaben 或 Bitsearch，以获得更好的覆盖率。
 
 DMHY 是可选搜索源，使用 `--source dmhy` 启用。它调用 DMHY 公开的关键词 RSS 接口，默认聚合搜索中不会自动启用。
