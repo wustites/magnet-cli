@@ -2,7 +2,13 @@ category,keyword,purpose
 cjk_exact,子子西,固定 CJK 回归词；跨源测试不得替换
 cjk_name,苏畅,CJK 人名与 APIBay 非 ASCII 兜底过滤
 cjk_phrase,可笑的单纯,CJK 多字连续短语
+cjk_phrase,无理的前进,CJK 多字连续短语
 cjk_traditional,繁體中文,繁体中文编码
 cjk_japanese,東京,日本语 CJK 编码
 english,ubuntu,英文基础搜索
 numeric,1080p,数字与字母混合
+person,"Skylar Vox",英文双词短语
+person,kiva,英文人名/关键词
+person,mspuiyi,英文用户名关键词
+catalog,jufe-016,番号格式关键词
+cjk_name,陈妮妮,CJK 人名
