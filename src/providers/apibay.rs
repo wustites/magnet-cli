@@ -30,7 +30,7 @@ pub async fn search(provider: &HttpProvider, query: &str) -> Result<Vec<Torrent>
     let mut results = parse(&bytes, &provider.config.name)?;
     // APIBay currently falls back to popular results for non-ASCII queries.
     // Do not let those unrelated rows enter the aggregated result set.
-    if query.chars().any(|character| !character.is_ascii()) {
+    if !query.is_ascii() {
         results.retain(|torrent| matches_query(&torrent.title, query));
     }
     Ok(results)
