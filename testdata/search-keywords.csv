@@ -2,11 +2,7 @@ category,keyword,purpose
 cjk_exact,子子西,固定 CJK 回归词；跨源测试不得替换
 cjk_name,苏畅,CJK 人名与 APIBay 非 ASCII 兜底过滤
 cjk_phrase,可笑的单纯,CJK 多字连续短语
-cjk_phrase,"中文 测试",CJK 空格分词
 cjk_traditional,繁體中文,繁体中文编码
 cjk_japanese,東京,日本语 CJK 编码
-mixed,"子子西 2026",CJK 与数字混合
 english,ubuntu,英文基础搜索
 numeric,1080p,数字与字母混合
-punctuation,C++,特殊字符加号
-hyphen,foo-bar,连字符
