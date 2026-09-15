@@ -387,7 +387,7 @@ fn builtin_sukebei_participates_in_default_search() {
         rows.iter()
             .filter(|row| row["default_search"] == true)
             .count(),
-        4
+        5
     );
     for name in ["nyaa", "knaben", "sukebei", "apibay", "bitsearch"] {
         assert!(rows.iter().any(|row| row["name"] == name));
@@ -395,6 +395,10 @@ fn builtin_sukebei_participates_in_default_search() {
     assert_eq!(
         rows.iter().find(|row| row["name"] == "apibay").unwrap()["default_search"],
         false
+    );
+    assert_eq!(
+        rows.iter().find(|row| row["name"] == "btgoogle").unwrap()["default_search"],
+        true
     );
 }
 

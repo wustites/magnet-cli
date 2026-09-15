@@ -117,7 +117,7 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 kind: Kind::Btgoogle,
                 url: "https://btgoogle.com/partials/search/results".into(),
                 api_key_env: None,
-                default_search: false,
+                default_search: true,
             },
             ProviderConfig {
                 name: "dmhy".into(),

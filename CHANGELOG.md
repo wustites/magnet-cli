@@ -10,6 +10,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Archive APIBay from default aggregate searches; it remains available through
   `--source apibay` for explicit testing.
+- Enable BtGoogle in default aggregate searches.
 
 ## 0.2.1 - 2026-09-15
 

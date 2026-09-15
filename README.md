@@ -120,7 +120,7 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 | `dmhy` | HTTP GET RSS | DMHY keyword RSS search; opt in with `--source dmhy` |
 | `animegarden` | HTTP POST JSON | Anime Garden full-text anime search; opt in with `--source animegarden` |
 | `mikan` | HTTP GET RSS | Mikan Project keyword RSS search; opt in with `--source mikan` |
-| `btgoogle` | HTTP GET HTML | BtGoogle search results; opt in with `--source btgoogle` |
+| `btgoogle` | HTTP GET HTML | BtGoogle search results; enabled in default aggregate searches |
 | `torznab` | HTTP GET RSS/XML | Adds `t=search`, `q`, `extended=1`, optional API key |
 | `rss` | HTTP GET RSS/Atom | Fetches the URL as-is, filters by title locally; the query is split on whitespace, case-insensitive, every word must match |
 
@@ -136,7 +136,7 @@ Anime Garden is available as an opt-in source with `--source animegarden`; it us
 
 Mikan Project is available as an opt-in source with `--source mikan`; it uses the site's keyword RSS search endpoint and is disabled in default aggregated searches.
 
-BtGoogle is available as an opt-in source with `--source btgoogle`; it uses the site's search-results endpoint and is disabled in default aggregated searches.
+BtGoogle uses the site's search-results endpoint and participates in default aggregate searches.
 
 Bitsearch's anonymous tier currently allows 200 requests per IP per day. To use an account key, set `api_key_env` on that provider; the key is sent in the `x-api-key` header and never included in diagnostics.
 
