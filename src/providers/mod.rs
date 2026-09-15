@@ -26,6 +26,8 @@ pub enum Kind {
     Apibay,
     /// Bitsearch JSON API.
     Bitsearch,
+    /// DMHY keyword RSS search.
+    Dmhy,
     /// Torznab RSS API.
     Torznab,
     /// A fixed RSS or Atom feed filtered locally.
@@ -101,6 +103,13 @@ pub fn configuration(path: Option<&Path>) -> Result<Vec<ProviderConfig>> {
                 url: "https://bitsearch.eu/api/v1/search".into(),
                 api_key_env: None,
                 default_search: true,
+            },
+            ProviderConfig {
+                name: "dmhy".into(),
+                kind: Kind::Dmhy,
+                url: "https://share.dmhy.org/topics/rss/rss.xml".into(),
+                api_key_env: None,
+                default_search: false,
             },
         ]
     };

@@ -29,10 +29,14 @@ pub async fn search(
             url.set_query(None);
             url.query_pairs_mut().extend_pairs(retained);
             let mut pairs = url.query_pairs_mut();
-            pairs.append_pair("q", query);
+            if matches!(config.kind, Kind::Dmhy) {
+                pairs.append_pair("keyword", query);
+            } else {
+                pairs.append_pair("q", query);
+            }
             if matches!(config.kind, Kind::Nyaa | Kind::Sukebei) {
                 pairs.append_pair("page", "rss");
-            } else {
+            } else if !matches!(config.kind, Kind::Dmhy) {
                 const PAGE_SIZE: u32 = 100;
                 pairs.append_pair("t", "search");
                 pairs.append_pair("extended", "1");

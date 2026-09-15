@@ -12,6 +12,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Filter unrelated APIBay fallback rows for non-ASCII/CJK queries and document the provider limitation.
 
+### Added
+
+- Add opt-in DMHY keyword RSS search via `--source dmhy`.
+
 ## 0.2.0 - 2026-09-12
 
 ### Added
