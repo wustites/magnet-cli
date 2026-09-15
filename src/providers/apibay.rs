@@ -27,7 +27,21 @@ pub async fn search(provider: &HttpProvider, query: &str) -> Result<Vec<Torrent>
         .append_pair("q", query)
         .append_pair("cat", "0");
     let bytes = body(provider.client.get(url)).await?;
-    parse(&bytes, &provider.config.name)
+    let mut results = parse(&bytes, &provider.config.name)?;
+    // APIBay currently falls back to popular results for non-ASCII queries.
+    // Do not let those unrelated rows enter the aggregated result set.
+    if query.chars().any(|character| !character.is_ascii()) {
+        results.retain(|torrent| matches_query(&torrent.title, query));
+    }
+    Ok(results)
+}
+
+fn matches_query(title: &str, query: &str) -> bool {
+    let title = title.to_lowercase();
+    query
+        .to_lowercase()
+        .split_whitespace()
+        .all(|term| title.contains(term))
 }
 
 fn parse(bytes: &[u8], source: &str) -> Result<Vec<Torrent>, ProviderError> {
@@ -65,5 +79,11 @@ mod tests {
         assert_eq!(rows[0].size, Some(42));
         assert_eq!(rows[0].seeders, Some(12));
         assert!(rows[0].published_at.is_some());
+    }
+
+    #[test]
+    fn filters_apibay_fallback_rows_for_cjk_queries() {
+        assert!(matches_query("台湾热门女神苏畅", "苏畅"));
+        assert!(!matches_query("Spider-Man: Brand New Day", "苏畅"));
     }
 }
