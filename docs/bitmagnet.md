@@ -8,6 +8,7 @@
 
 ```text
 Web UI:       http://127.0.0.1:3333/webui/
+公网 Web UI:  https://bm.20070809.xyz/
 Torznab API:  http://127.0.0.1:3333/torznab/api
 BitTorrent:   TCP/UDP 3334
 数据库:       /opt/bitmagnet/data/postgres
@@ -30,6 +31,14 @@ curl http://127.0.0.1:3333/status
 ```
 
 数据库、配置的备份策略及完整恢复步骤见[数据备份与恢复](bitmagnet-backup.md)。
+
+## Caddy 公网查询入口
+
+`https://bm.20070809.xyz/` 由 Caddy 反向代理到本机 `127.0.0.1:3333`。访问根路径时 bitmagnet 会自动跳转到 `/webui`，Web UI 的静态资源和查询请求都通过同一域名访问。
+
+入口沿用其他子站点的 `admin` Basic Auth，并启用 HTTPS、gzip/zstd 压缩和基础安全响应头。未认证请求返回 `401`。由于认证覆盖整个站点，公网 Torznab 地址 `https://bm.20070809.xyz/torznab/api` 也需要 Basic Auth；`magnet-cli` 应继续使用本机地址 `http://127.0.0.1:3333/torznab/api`。
+
+Caddy 上游只监听回环地址，bitmagnet 的 DHT TCP/UDP `3334` 端口不经过 Caddy。
 
 ## 查询
 
