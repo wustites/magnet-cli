@@ -174,7 +174,7 @@ default_search = true
 
 Prowlarr 的配置、Caddy 反代、API Key 和当前测试状态见 [Prowlarr 集成文档](docs/prowlarr.md)。本项目建议在同一台机器上使用 `http://127.0.0.1:9696/3/api`。
 
-bitmagnet 的本地部署、DHT 索引、Torznab 接口和数据库状态见 [bitmagnet 集成文档](docs/bitmagnet.md)。
+bitmagnet 的本地部署、DHT 索引、Torznab 接口和数据库状态见 [bitmagnet 集成文档](docs/bitmagnet.md)，数据库与配置保护见 [bitmagnet 数据备份与恢复](docs/bitmagnet-backup.md)。
 
 在配置文件中添加以下条目，或取消示例文件中对应条目的注释。将 `url` 替换为服务给出的**完整 Torznab API endpoint**，不能只填服务首页：
 

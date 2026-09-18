@@ -29,6 +29,8 @@ sudo docker compose restart bitmagnet
 curl http://127.0.0.1:3333/status
 ```
 
+数据库、配置的备份策略及完整恢复步骤见[数据备份与恢复](bitmagnet-backup.md)。
+
 ## 查询
 
 通过 Torznab API 查询关键词：
