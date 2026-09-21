@@ -29,6 +29,14 @@ url = "https://bitsearch.eu/api/v1/search"
 # url = "http://localhost:9117/api/v2.0/indexers/all/results/torznab/api"
 # api_key_env = "TORZNAB_API_KEY"
 
+# 本机 bitmagnet 的 Torznab 接口不需要 API Key；无需 api_key_env。
+# 详见 docs/bitmagnet.md。
+# [[providers]]
+# name = "bitmagnet"
+# kind = "torznab"
+# url = "http://127.0.0.1:3333/torznab/api"
+# default_search = true
+
 # RSS/Atom 原样请求 URL，在本地按标题匹配所有搜索词（忽略大小写）。
 # example.org 是占位地址，需替换为实际 feed URL。
 # [[providers]]
