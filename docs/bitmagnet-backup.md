@@ -2,7 +2,9 @@
 
 > **已封存（2026-09-21）**：本文档随本机 bitmagnet 部署一并停用。备份与恢复流程、实测数据与陷阱说明仍然有效，可作为同类 PostgreSQL 部署的参考。
 >
-> 文中引用的 `/opt/bitmagnet`、`bitmagnet-postgres`、`/var/backups/bitmagnet` 等路径属于该已封存的部署，使用前请先确认这些路径的当前状态。
+> 文中引用的 `/opt/bitmagnet`、`bitmagnet-postgres`、`/var/backups/bitmagnet` 等路径属于该已封存的部署，均已删除，使用前请先确认这些路径的当前状态。
+>
+> 保留下来的那份逻辑备份（2026-09-21T07:47:48Z）已移至 PikPak 云盘：`~/pik/Backup/bitmagnet/20260921T074748Z/`，含 `bitmagnet.dump`、`config.tar.gz`、`database-info.txt`、`SHA256SUMS`。该副本已按本文「验证备份」流程校验（`sha256sum --check SHA256SUMS` 全部 OK），并与删除前的本地文件逐字节一致。这是当前唯一副本；恢复时建议先 `rclone copy` 回本地磁盘再 `pg_restore`，云盘挂载的随机读很慢。
 
 本文适用于项目当前的 Docker Compose 部署：bitmagnet 位于 `/opt/bitmagnet`，PostgreSQL 16 容器名为 `bitmagnet-postgres`，数据库名为 `bitmagnet`，超级用户名为 `postgres`。**不存在名为 `bitmagnet` 的角色**，`pg_dump -U bitmagnet` 会以 `FATAL: role "bitmagnet" does not exist` 失败——数据库名和角色名在这里不是一回事。
 
