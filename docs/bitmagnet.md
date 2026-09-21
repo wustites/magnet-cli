@@ -178,7 +178,7 @@ magnet search '繁體中文' --config ~/.config/magnet-cli/bitmagnet.toml --json
 
 入库速率：过去 24 小时新增 299,024 torrent（约 1.25 万/小时），全期均值约 1.48 万/小时（35 万/天），速率随 DHT 去重而缓降。队列已基本消化，无积压。
 
-容量：约 7.1 KB/torrent，库容自 09-16 起以约 2.4 GB/天增长（2.34 GB → 16.0 GB，129 小时）。宿主机 `/dev/sda1` 总 193 GB、已用 100 GB、剩余 94 GB，按当前速率约 39 天耗尽，需提前规划清理或扩容；清理与容量规划细节见[数据备份与恢复](bitmagnet-backup.md)。索引膨胀（`torrent_files` 索引 6.4 GB）在删除历史数据后不会自动回落，需 `REINDEX`/`VACUUM FULL` 才能回收。
+容量：约 7.1 KB/torrent，库容自 09-16 起以约 2.4 GB/天增长（2.34 GB → 16.0 GB，129 小时）。宿主机 `/dev/sda1` 总 192.7 GiB、已用 96.1 GiB、剩余 96.6 GiB（49.9%，`duf` 读数），按当前速率约 40 天耗尽，需提前规划清理或扩容；清理与容量规划细节见[数据备份与恢复](bitmagnet-backup.md)。索引膨胀（`torrent_files` 索引 6.4 GB）在删除历史数据后不会自动回落，需 `REINDEX`/`VACUUM FULL` 才能回收。
 
 搜索已可用，各关键词实测数量见上节。哈希 `A02AFF57F86A48407A57E17DBEA6FC09C9150570` 仍为 0 条——该资源未被 DHT 发现，与索引规模无关。
 
