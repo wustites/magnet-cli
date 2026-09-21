@@ -1,5 +1,9 @@
 # bitmagnet 数据备份与恢复
 
+> **已封存（2026-09-21）**：本文档随本机 bitmagnet 部署一并停用。备份与恢复流程、实测数据与陷阱说明仍然有效，可作为同类 PostgreSQL 部署的参考。
+>
+> 文中引用的 `/opt/bitmagnet`、`bitmagnet-postgres`、`/var/backups/bitmagnet` 等路径属于该已封存的部署，使用前请先确认这些路径的当前状态。
+
 本文适用于项目当前的 Docker Compose 部署：bitmagnet 位于 `/opt/bitmagnet`，PostgreSQL 16 容器名为 `bitmagnet-postgres`，数据库名为 `bitmagnet`，超级用户名为 `postgres`。**不存在名为 `bitmagnet` 的角色**，`pg_dump -U bitmagnet` 会以 `FATAL: role "bitmagnet" does not exist` 失败——数据库名和角色名在这里不是一回事。
 
 bitmagnet 的主要持久化数据分为两部分：
@@ -8,6 +12,23 @@ bitmagnet 的主要持久化数据分为两部分：
 - 部署配置：`docker-compose.yml` 和 `config/`。当前 `config/` 是空目录，连接参数由 Compose 的环境变量（`POSTGRES_HOST`、`POSTGRES_PASSWORD`、`POSTGRES_DB`）注入，`sudo docker exec bitmagnet bitmagnet config show` 会显示这些值来源为 `env`。因此配置备份的实际对象是 `docker-compose.yml`。
 
 数据库不能靠重新爬 DHT 恢复：DHT 发现结果具有随机性，且按当前约 1.25 万 torrent/小时的速度，现有的 210 万条记录需要连续爬取约 6 天才能回到同一量级，内容也不会一致。备份是唯一可靠的恢复手段。
+
+### 为什么 16 GB 的库只有 1.5 GB 备份
+
+不算异常。`pg_dump` 导出的是逻辑内容，三部分不进 dump：
+
+| 库内构成 | 大小 | 是否进逻辑 dump |
+| --- | ---: | --- |
+| 索引（`pg_indexes_size`） | 9.6 GB | 否，只导出 `CREATE INDEX` 语句，恢复时重建 |
+| 表数据 heap + TOAST（`pg_table_size`） | 6.3 GB | 是 |
+| WAL | 544 MB | 否 |
+| `pg_database_size` 合计 | 16 GB | — |
+
+实测未压缩逻辑 dump（`pg_dump -Fp` 纯 SQL）为 7,405,114,012 字节 = 6.9 GiB，与 6.3 GB 行数据吻合；`-Fc --compress=6` 再压缩 4.7 倍得到 1.48 GiB。
+
+压缩率高来自数据本身的高度冗余：`torrent_files` 单表 3780 MB 中 `path` 列占 1433 MB，2811 万条路径共享目录前缀与命名模式。该表单独测：未压缩 4,870,901,189 字节 → zstd 后 576,085,324 字节，**8.5 倍**。
+
+推论：逻辑恢复慢在索引重建而非数据导入（9.6 GB 索引要现建），这也是物理备份恢复只要 17 s 的原因。
 
 ## 两种备份方式
 
@@ -284,4 +305,4 @@ sudo find /var/backups/bitmagnet -mindepth 1 -maxdepth 1 \
 - `torrent_files` 的索引不会随 `DELETE` 自动回落，需要 `VACUUM FULL` 或 `REINDEX` 才能把空间还给操作系统；
 - 只有空间真正回收之后，备份体积才会下降，所以清理完成后再做一次备份，而不是指望 `DELETE` 立刻缩小备份。
 
-当前部署未配置归档/时间线相关清理，`archive_mode = off`、`max_wal_senders = 10`、`pg_wal` 占用约 480 MB，属于正常水平。
+封存前的部署未配置归档/时间线相关清理，`archive_mode = off`、`max_wal_senders = 10`、`pg_wal` 占用约 480 MB，属于正常水平。

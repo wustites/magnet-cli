@@ -29,8 +29,9 @@ url = "https://bitsearch.eu/api/v1/search"
 # url = "http://localhost:9117/api/v2.0/indexers/all/results/torznab/api"
 # api_key_env = "TORZNAB_API_KEY"
 
-# 本机 bitmagnet 的 Torznab 接口不需要 API Key；无需 api_key_env。
-# 详见 docs/bitmagnet.md。
+# 本地 Torznab 且不需要 API Key 的示例（无需 api_key_env）。
+# 该条目原本指向本机 bitmagnet 部署，该部署已于 2026-09-21 封存，详见 docs/bitmagnet.md。
+# 仅作为「无鉴权本地 Torznab」的写法参考；启用前请把 url 换成实际可用的端点。
 # [[providers]]
 # name = "bitmagnet"
 # kind = "torznab"

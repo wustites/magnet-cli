@@ -1,10 +1,14 @@
 # bitmagnet 集成
 
+> **已封存（2026-09-21）**：本机 bitmagnet 部署已停用，仓库不再维护这部分集成。本文档保留作历史参考，其中的接口行为、实测数据与检索特性描述仍然有效。
+>
+> 若日后重新部署，索引需要从零开始积累——DHT 抓取无法复现原有 210 万条记录，入库速率随去重而下降，且内容不会一致。
+
 [bitmagnet](https://github.com/bitmagnet-io/bitmagnet) 是自托管的 BitTorrent 索引器和 DHT crawler。它与 Prowlarr 聚合外部 Indexer 的工作方式不同：bitmagnet 会持续从 DHT 发现资源，并将结果保存到本地 PostgreSQL 数据库。
 
-## 当前部署
+## 部署结构（已封存）
 
-部署目录：`/opt/bitmagnet`
+封存前的部署目录：`/opt/bitmagnet`
 
 ```text
 Web UI:       http://127.0.0.1:3333/webui/
@@ -32,9 +36,9 @@ curl http://127.0.0.1:3333/status
 
 数据库、配置的备份策略及完整恢复步骤见[数据备份与恢复](bitmagnet-backup.md)。
 
-## Caddy 公网查询入口
+## Caddy 公网查询入口（已封存）
 
-`https://bm.20070809.xyz/` 由 Caddy 反向代理到本机 `127.0.0.1:3333`。访问根路径时 bitmagnet 会自动跳转到 `/webui`，Web UI 的静态资源和查询请求都通过同一域名访问。
+封存前，`https://bm.20070809.xyz/` 由 Caddy 反向代理到本机 `127.0.0.1:3333`。访问根路径时 bitmagnet 会自动跳转到 `/webui`，Web UI 的静态资源和查询请求都通过同一域名访问。
 
 入口沿用其他子站点的 `admin` Basic Auth，并启用 HTTPS、gzip/zstd 压缩和基础安全响应头。未认证请求返回 `401`。由于认证覆盖整个站点，公网 Torznab 地址 `https://bm.20070809.xyz/torznab/api` 也需要 Basic Auth；`magnet-cli` 应继续使用本机地址 `http://127.0.0.1:3333/torznab/api`。
 
@@ -145,7 +149,7 @@ magnet search '繁體中文' --config ~/.config/magnet-cli/bitmagnet.toml --json
 
 结果数随 crawler 运行持续增长，同一关键词在几分钟内即可能增加，且做种数也在变（`流浪地球` 首条 09-16 为 22 做种，09-21 为 38 做种）。
 
-## 当前数据量
+## 封存时的数据量
 
 截至 2026-09-21 06:40 UTC（DHT crawler 连续运行 5 天 22 小时）：
 
@@ -178,13 +182,13 @@ magnet search '繁體中文' --config ~/.config/magnet-cli/bitmagnet.toml --json
 
 入库速率：过去 24 小时新增 299,024 torrent（约 1.25 万/小时），全期均值约 1.48 万/小时（35 万/天），速率随 DHT 去重而缓降。队列已基本消化，无积压。
 
-容量：约 7.1 KB/torrent，库容自 09-16 起以约 2.4 GB/天增长（2.34 GB → 16.0 GB，129 小时）。宿主机 `/dev/sda1` 总 192.7 GiB、已用 96.1 GiB、剩余 96.6 GiB（49.9%，`duf` 读数），按当前速率约 40 天耗尽，需提前规划清理或扩容；清理与容量规划细节见[数据备份与恢复](bitmagnet-backup.md)。索引膨胀（`torrent_files` 索引 6.4 GB）在删除历史数据后不会自动回落，需 `REINDEX`/`VACUUM FULL` 才能回收。
+容量：约 7.1 KB/torrent，库容自 09-16 起以约 2.4 GB/天增长（2.34 GB → 16.0 GB，129 小时）。宿主机 `/dev/sda1` 总 192.7 GiB、已用 96.1 GiB、剩余 96.6 GiB（49.9%，`duf` 读数）——当时按 2.4 GB/天估算约 40 天见底，这正是封存该部署的原因之一。索引膨胀（`torrent_files` 索引 6.4 GB）在删除历史数据后不会自动回落，需 `REINDEX`/`VACUUM FULL` 才能回收；相关流程见[数据备份与恢复](bitmagnet-backup.md)。
 
-搜索已可用，各关键词实测数量见上节。哈希 `A02AFF57F86A48407A57E17DBEA6FC09C9150570` 仍为 0 条——该资源未被 DHT 发现，与索引规模无关。
+封存时搜索可用，各关键词实测数量见上节。哈希 `A02AFF57F86A48407A57E17DBEA6FC09C9150570` 一直为 0 条——该资源未被 DHT 发现，与索引规模无关。
 
-## Prowlarr 集成
+## Prowlarr 集成（已封存）
 
-bitmagnet 暴露 Torznab 接口，可以在 Prowlarr 中添加 **Generic Torznab**：
+bitmagnet 暴露 Torznab 接口，封存前可以在 Prowlarr 中添加 **Generic Torznab**：
 
 ```text
 Name:     Bitmagnet DHT
@@ -193,6 +197,6 @@ API Path: /torznab/api
 API Key:  留空
 ```
 
-Torznab 接口现已返回结果（见上节），可以按此配置在 Prowlarr 中添加并测试 Indexer。
+该接口在封存时已能返回结果（见上节），但对应的 Indexer 已随部署一并停用。
 
 官方文档：[Installation](https://bitmagnet.io/setup/installation.html)、[Endpoints](https://bitmagnet.io/guides/endpoints.html)、[Servarr Integration](https://bitmagnet.io/guides/servarr-integration.html)。
