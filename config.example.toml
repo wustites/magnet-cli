@@ -9,10 +9,13 @@ name = "knaben"
 kind = "knaben"
 url = "https://api.knaben.org/v1"
 
+# APIBay 的 CJK 覆盖率不可靠，默认聚合搜索不启用；需要时用 --source apibay 单独查询。
+# default_search 的默认值是 true，务必显式写出 false，否则会重新打开该源。
 [[providers]]
 name = "apibay"
 kind = "apibay"
 url = "https://apibay.org/q.php"
+default_search = false
 
 [[providers]]
 name = "bitsearch"
@@ -20,6 +23,30 @@ kind = "bitsearch"
 url = "https://bitsearch.eu/api/v1/search"
 # 可选：免费匿名额度为每 IP 每日 200 次；配置 API key 可提高额度。
 # api_key_env = "BITSEARCH_API_KEY"
+
+[[providers]]
+name = "btgoogle"
+kind = "btgoogle"
+url = "https://btgoogle.com/partials/search/results"
+
+# 以下三个源为按需启用的 opt-in 源，不参与默认聚合搜索。
+[[providers]]
+name = "dmhy"
+kind = "dmhy"
+url = "https://share.dmhy.org/topics/rss/rss.xml"
+default_search = false
+
+[[providers]]
+name = "animegarden"
+kind = "animegarden"
+url = "https://api.animes.garden/resources"
+default_search = false
+
+[[providers]]
+name = "mikan"
+kind = "mikan"
+url = "https://mikanani.me/RSS/Search"
+default_search = false
 
 # 取消以下条目的注释，并填写 Jackett/Prowlarr 提供的完整 Torznab API endpoint。
 # api_key_env 是环境变量名称；运行前 export TORZNAB_API_KEY=你的密钥。

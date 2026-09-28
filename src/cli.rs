@@ -74,6 +74,9 @@ pub struct SearchArgs {
     /// Pages to request from providers that support pagination
     #[arg(long, default_value = "1", value_parser = clap::value_parser!(u16).range(1..=20))]
     pub pages: u16,
+    /// Keep results whose title omits a query term, accepting upstream filler
+    #[arg(long)]
+    pub no_title_filter: bool,
 }
 #[derive(Clone, Copy, ValueEnum)]
 pub enum Sort {

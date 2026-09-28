@@ -101,6 +101,26 @@ impl Torrent {
     }
 }
 
+/// Reports whether `title` contains every whitespace-separated term of `query`,
+/// ignoring case.
+///
+/// Several public indexes tokenize CJK queries per character and fall back to
+/// their most popular rows when a query has no real match, so a search can
+/// return a full page of unrelated titles. Filtering those rows locally is the
+/// only defence, and it applies to every query, not only non-ASCII ones.
+///
+/// The check is deliberately a plain substring test so it stays predictable.
+/// It is a heuristic, so a query spelled differently from the titles it should
+/// match — `C++` against `Visual C+ Redistributable`, say — can be filtered out;
+/// pass `--no-title-filter` to the CLI to turn it off.
+pub fn matches_query(title: &str, query: &str) -> bool {
+    let title = title.to_lowercase();
+    query
+        .to_lowercase()
+        .split_whitespace()
+        .all(|term| title.contains(term))
+}
+
 /// Parses a byte count with optional decimal or binary size units.
 pub fn parse_size(raw: &str) -> Result<u64, String> {
     let raw = raw.trim();

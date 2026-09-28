@@ -263,6 +263,45 @@ fn api_errors_are_not_empty_successes_and_secrets_are_redacted() {
     assert!(!String::from_utf8_lossy(&output.stderr).contains("secret-value"));
 }
 #[test]
+fn btgoogle_keeps_valid_rows_when_one_magnet_is_malformed() {
+    let good = "a".repeat(40);
+    let body = format!(
+        r#"<div class="row"><a class="rname" href="/good">Ubuntu Good Row</a><span class="size">1.5 MB</span><span class="seed">7</span><span class="src">Nyaa</span><span class="src">2026-09-13</span><button data-magnet="magnet:?xt=urn:btih:{good}&amp;tr=udp%3A%2F%2Ftracker.example%2Fannounce"></button></div><div class="row"><a class="rname" href="/bad">Ubuntu Bad Row</a><span class="src">Nyaa</span><button data-magnet="magnet:?xt=urn:btih:NOTAHASH"></button></div>"#
+    );
+    let (url, handle) = server(body, "q=Ubuntu");
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(
+        &config,
+        format!("[[providers]]\nname='btgoogle'\nkind='btgoogle'\nurl='{url}'"),
+    )
+    .unwrap();
+    let output = run(
+        dir.path(),
+        &[
+            "--config",
+            config.to_str().unwrap(),
+            "search",
+            "Ubuntu",
+            "--json",
+        ],
+    );
+    handle.join().unwrap();
+    // One bad magnet must cost only its own row, not the whole provider.
+    assert_eq!(output.status.code(), Some(0));
+    let rows: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(rows.as_array().unwrap().len(), 1);
+    assert_eq!(rows[0]["title"], "Ubuntu Good Row");
+    assert_eq!(rows[0]["info_hash"], good);
+    assert_eq!(rows[0]["published_at"], "2026-09-13T00:00:00Z");
+    let warnings = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        warnings.contains("btgoogle: skipped 1 invalid result(s)"),
+        "{warnings}"
+    );
+}
+
+#[test]
 fn argument_errors_and_offline_resolver() {
     let dir = tempfile::tempdir().unwrap();
     for args in [
@@ -406,7 +445,10 @@ fn builtin_sukebei_participates_in_default_search() {
 fn torznab_paginates_with_offsets() {
     let item =
         |title: &str| format!("<rss><channel><item><title>{title}</title></item></channel></rss>");
-    let (url, requests, handle) = paged_server(vec![item("First"), item("Second")]);
+    let (url, requests, handle) = paged_server(vec![
+        item("First Linux Release"),
+        item("Second Linux Release"),
+    ]);
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().join("config.toml");
     std::fs::write(

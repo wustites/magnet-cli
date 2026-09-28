@@ -167,6 +167,7 @@ async fn run(cli: Cli) -> Result<u8> {
                     concurrency: args.concurrency.into(),
                     deadline: args.deadline.map(Duration::from_secs),
                     pages: args.pages,
+                    title_filter: !args.no_title_filter,
                 },
             )
             .await;

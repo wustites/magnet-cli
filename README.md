@@ -82,6 +82,7 @@ See `magnet --help` or `magnet search --help` for full command help.
 | `--concurrency N` | `8` | Providers searched concurrently, 1–64 |
 | `--deadline SECONDS` | none | Total search deadline, including queued providers, 1–3600 seconds |
 | `--pages N` | `1` | Pages requested from providers with pagination support, 1–20 |
+| `--no-title-filter` | off | Keep results whose title omits a query term |
 
 `--json`, `--jsonl`, `--magnet` are mutually exclusive. Without them you get a table; unknown seeders, size, and date show as `?`, sizes render as decimal GB, AGE counts days.
 
@@ -98,7 +99,7 @@ CLI flags win over the matching env vars. Global options can go before or after 
 
 ## Configuring Providers
 
-With no config, Nyaa RSS, Knaben JSON, Sukebei RSS, APIBay, and Bitsearch are queried concurrently. An explicit config **replaces the default provider list**, it is not appended to it.
+With no config, Nyaa RSS, Knaben JSON, Sukebei RSS, Bitsearch, and BtGoogle are queried concurrently. An explicit config **replaces the default provider list**, it is not appended to it. Nine providers are built in; those five take part by default and APIBay, DMHY, Anime Garden, and Mikan are opt-in via `--source`.
 
 Start from [config.example.toml](config.example.toml):
 
@@ -108,7 +109,7 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected. `api_key_env` is accepted only for Torznab and Bitsearch and must be a valid environment variable name.
+Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` must be non-empty, unique, and ASCII letters, digits, hyphens, or underscores only. At least one source is required; unknown config fields are rejected. `api_key_env` is accepted only for Torznab and Bitsearch and must be a valid environment variable name. `default_search` defaults to `true`, so write `default_search = false` explicitly for any source you want excluded from default aggregate searches.
 
 | `kind` | Request | Search behavior |
 | --- | --- | --- |
@@ -126,9 +127,7 @@ Each `[[providers]]` entry needs `name`, `kind`, and an HTTP(S) `url`. `name` mu
 
 `--pages` uses Knaben's `from` offset, Bitsearch's `page`, and Torznab's `offset`/`limit`. APIBay, Nyaa/Sukebei RSS, and configured RSS/Atom URLs are fetched once because they do not expose a reliable compatible pagination mechanism. Pagination stops early when a provider returns an empty/final page; the per-provider timeout covers all requested pages.
 
-API Bay may return popular fallback results instead of matches for non-ASCII queries such as CJK names. The CLI removes those rows by requiring every query term to occur in the returned title. Use Knaben or Bitsearch when searching CJK content for better coverage.
-
-API Bay is archived from default aggregate searches because its CJK coverage is unreliable. Select it explicitly with `--source apibay` when needed; DMHY and Mikan are also opt-in sources.
+API Bay is archived from default aggregate searches because it pads queries it cannot match with popular rows. Title filtering removes those rows for every provider, but a source that ranks by seeders will still surface its loosest matches first. Select API Bay explicitly with `--source apibay` when needed; DMHY, Anime Garden, and Mikan are also opt-in sources.
 
 DMHY is available as an opt-in source with `--source dmhy`; it uses DMHY's public keyword RSS endpoint and is disabled in default aggregated searches.
 
@@ -234,6 +233,12 @@ Protocol references: [Knaben API](https://knaben.org/api/v1/), [Bitsearch API](h
 
 Aggregation keys on BTIH, never on title. Base32 hashes convert to hex; hash-less results never merge even with identical names. For one hash, sources and trackers union, seeders/leechers take the max reported value, never summed.
 
+### Title Filtering
+
+Public indexes tokenize CJK queries per character, and when a query has no real match they pad the page with their most popular rows. Search therefore drops any result whose title does not contain every whitespace-separated term of the query, ignoring case. This runs per provider, after magnet normalization and before dedup, and covers every query — not just non-ASCII ones. Each drop is reported on stderr as `NAME: dropped N result(s) that do not match the query`, so filtering is never silent.
+
+The check is a plain substring test. It is deliberately predictable rather than clever, which means a query spelled differently from the titles it should match can be filtered out: searching `C++` drops `Microsoft Visual C+ Redistributable` while keeping `Visual C++ [2005-2015]`. Pass `--no-title-filter` when a query is written in a form the titles never use literally.
+
 The title comes from the first record in config order; size, publish time, and detail link keep that record's values, backfilled from later records when missing. Provider completion order doesn't affect this priority. Invalid or conflicting hashes are skipped with a warning.
 
 Rebuilt magnets keep BTIH, display name, and trackers; other magnet params are dropped. BTIH/v1 is supported; v2-only magnets are not.
@@ -323,7 +328,7 @@ fi
 
 ## Current Limits
 
-Eight providers run concurrently by default (configurable from 1 to 64), with a 15 s default timeout per provider and an 8 MiB cap per response. Extra sources queue. `--timeout` covers one provider and all of its requested pages; use `--deadline` when the whole command needs a bound.
+Up to 8 providers run concurrently (configurable from 1 to 64), with a 15 s default timeout per provider and an 8 MiB cap per response. Extra sources queue. `--timeout` covers one provider and all of its requested pages; use `--deadline` when the whole command needs a bound.
 
 Each source reads one page by default. `--pages` can request up to 20 pages from Knaben, Bitsearch, and Torznab; APIBay, Nyaa/Sukebei RSS, and generic RSS/Atom feeds are fetched once. `--limit` caps final output only and may return fewer rows than asked. Public source availability, rate limits, and completeness depend on upstream services.
 
@@ -341,8 +346,12 @@ src/
 ├── lib.rs              # library module exports
 └── providers/
     ├── mod.rs          # Provider trait, config, HTTP wrapper
-    ├── feeds.rs        # Nyaa / Sukebei / Torznab / RSS
-    └── knaben.rs       # Knaben JSON API
+    ├── feeds.rs        # Nyaa / Sukebei / Torznab / RSS / DMHY / Mikan
+    ├── knaben.rs       # Knaben JSON API
+    ├── apibay.rs       # APIBay JSON API
+    ├── bitsearch.rs    # Bitsearch JSON API
+    ├── btgoogle.rs     # BtGoogle HTML search endpoint
+    └── animegarden.rs  # Anime Garden JSON API
 ```
 
 The crate root re-exports `Provider`, `Torrent`, `SearchOptions`, and both search entry points for new providers or other front ends. Implement `Provider::search` for a basic source and optionally override `search_pages`; call `search` for backward-compatible defaults or `search_with_options` for concurrency, deadline, and pagination controls. To support a new `kind` in CLI TOML configs, also update `Kind` and `HttpProvider` dispatch.

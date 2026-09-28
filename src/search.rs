@@ -1,4 +1,7 @@
-use crate::{model::Torrent, providers::Provider};
+use crate::{
+    model::{Torrent, matches_query},
+    providers::Provider,
+};
 use futures::{StreamExt, stream};
 use std::{collections::HashMap, time::Duration};
 
@@ -25,6 +28,8 @@ pub struct SearchOptions {
     pub deadline: Option<Duration>,
     /// Pages requested from providers with pagination support.
     pub pages: u16,
+    /// Drop results whose title does not contain every query term.
+    pub title_filter: bool,
 }
 
 impl Default for SearchOptions {
@@ -34,6 +39,7 @@ impl Default for SearchOptions {
             concurrency: 8,
             deadline: None,
             pages: 1,
+            title_filter: true,
         }
     }
 }
@@ -105,17 +111,30 @@ pub async fn search_with_options(
             Ok(Ok(rows)) => {
                 report.successes += 1;
                 let mut invalid = 0;
+                let mut unmatched = 0;
                 for mut row in rows {
-                    if row.normalize().is_ok() {
-                        report.results.push(row);
-                    } else {
+                    if row.normalize().is_err() {
                         invalid += 1;
+                        continue;
                     }
+                    // Upstream indexes pad a query they cannot match with their
+                    // most popular rows, so keep only rows that mention every
+                    // term. Counting them keeps the drop from being silent.
+                    if options.title_filter && !matches_query(&row.title, query) {
+                        unmatched += 1;
+                        continue;
+                    }
+                    report.results.push(row);
                 }
                 if invalid > 0 {
                     report
                         .warnings
                         .push(format!("{name}: skipped {invalid} invalid result(s)"));
+                }
+                if unmatched > 0 {
+                    report.warnings.push(format!(
+                        "{name}: dropped {unmatched} result(s) that do not match the query"
+                    ));
                 }
             }
             Ok(Err(error)) => {

@@ -1,5 +1,5 @@
 use magnet_cli::{
-    model::{Torrent, normalize_hash, parse_size},
+    model::{Torrent, matches_query, normalize_hash, parse_size},
     search::deduplicate,
 };
 
@@ -84,7 +84,9 @@ impl magnet_cli::providers::Provider for Stub {
             })
         } else {
             Ok(vec![Torrent {
-                title: self.name.into(),
+                // The shared title filter requires every query term, so a
+                // fixture row has to mention the query it is searched for.
+                title: format!("ubuntu {}", self.name),
                 info_hash: Some("a".repeat(40)),
                 sources: vec![self.name.into()],
                 ..Default::default()
@@ -116,7 +118,7 @@ async fn partial_failures_and_deadlines_keep_results() {
     let report = search(&providers, "ubuntu", Duration::from_millis(50)).await;
     assert_eq!(report.successes, 1);
     assert_eq!(report.results.len(), 1);
-    assert_eq!(report.results[0].title, "good");
+    assert_eq!(report.results[0].title, "ubuntu good");
     assert_eq!(report.warnings.len(), 2);
     assert!(!report.network_only);
 }
@@ -139,7 +141,7 @@ async fn completion_order_does_not_change_preferred_title() {
     let report = search(&providers, "ubuntu", Duration::from_secs(1)).await;
     assert_eq!(report.successes, 2);
     assert_eq!(report.results.len(), 1);
-    assert_eq!(report.results[0].title, "first");
+    assert_eq!(report.results[0].title, "ubuntu first");
 }
 
 #[tokio::test]
@@ -166,18 +168,131 @@ async fn total_deadline_keeps_completed_results_and_cancels_the_rest() {
             concurrency: 1,
             deadline: Some(Duration::from_millis(50)),
             pages: 1,
+            title_filter: true,
         },
     )
     .await;
     assert_eq!(report.successes, 1);
     assert_eq!(report.results.len(), 1);
-    assert_eq!(report.results[0].title, "good");
+    assert_eq!(report.results[0].title, "ubuntu good");
     assert!(
         report
             .warnings
             .iter()
             .any(|warning| warning == "slow: total search deadline exceeded")
     );
+}
+
+#[test]
+fn title_filter_requires_every_term_regardless_of_script() {
+    // CJK, Latin, mixed case and multi-term queries all behave the same way.
+    assert!(matches_query("台湾热门女神苏畅", "苏畅"));
+    assert!(!matches_query("Spider-Man: Brand New Day", "苏畅"));
+    assert!(matches_query("Big.Buck.Bunny.2008.1080p", "big buck bunny"));
+    assert!(!matches_query("Big.Buck.Bunny.2008.1080p", "big buck tori"));
+    assert!(matches_query("Microsoft Visual C++ Redistributable", "c++"));
+    assert!(matches_query("anything at all", ""));
+}
+
+struct Titled {
+    name: &'static str,
+    title: &'static str,
+    /// Distinct per row and per provider so dedup never merges the fixtures.
+    hashes: [char; 2],
+    delay: std::time::Duration,
+}
+#[async_trait::async_trait]
+impl magnet_cli::providers::Provider for Titled {
+    fn name(&self) -> &str {
+        self.name
+    }
+    async fn search(&self, _: &str) -> Result<Vec<Torrent>, magnet_cli::providers::ProviderError> {
+        tokio::time::sleep(self.delay).await;
+        Ok(vec![
+            Torrent {
+                title: self.title.into(),
+                info_hash: Some(self.hashes[0].to_string().repeat(40)),
+                sources: vec![self.name.into()],
+                ..Default::default()
+            },
+            Torrent {
+                // What an index returns in place of a real match.
+                title: "upstream popular filler".into(),
+                info_hash: Some(self.hashes[1].to_string().repeat(40)),
+                sources: vec![self.name.into()],
+                ..Default::default()
+            },
+        ])
+    }
+}
+
+fn titled_providers() -> Vec<Box<dyn magnet_cli::providers::Provider>> {
+    vec![
+        Box::new(Titled {
+            name: "filler",
+            title: "子子西 合集",
+            hashes: ['a', 'b'],
+            delay: std::time::Duration::ZERO,
+        }),
+        Box::new(Titled {
+            name: "untitled",
+            title: "",
+            hashes: ['c', 'd'],
+            delay: std::time::Duration::ZERO,
+        }),
+    ]
+}
+
+#[tokio::test]
+async fn the_title_filter_drops_filler_and_reports_it() {
+    use magnet_cli::search::search_with_options;
+    use std::time::Duration;
+    let report = search_with_options(
+        &titled_providers(),
+        "子子西",
+        magnet_cli::search::SearchOptions {
+            provider_timeout: Duration::from_secs(5),
+            title_filter: true,
+            ..Default::default()
+        },
+    )
+    .await;
+    // Only the row mentioning every query term survives, and a row with no
+    // title can never satisfy the query.
+    assert_eq!(report.results.len(), 1);
+    assert_eq!(report.results[0].title, "子子西 合集");
+    // Every drop is reported per provider, so nothing is lost silently.
+    assert!(
+        report
+            .warnings
+            .contains(&"filler: dropped 1 result(s) that do not match the query".into())
+    );
+    assert!(
+        report
+            .warnings
+            .contains(&"untitled: dropped 2 result(s) that do not match the query".into()),
+        "{:?}",
+        report.warnings
+    );
+}
+
+#[tokio::test]
+async fn the_title_filter_can_be_disabled() {
+    use magnet_cli::search::search_with_options;
+    use std::time::Duration;
+    let report = search_with_options(
+        &titled_providers(),
+        "子子西",
+        magnet_cli::search::SearchOptions {
+            provider_timeout: Duration::from_secs(5),
+            title_filter: false,
+            ..Default::default()
+        },
+    )
+    .await;
+    // 2 providers x 2 rows, and nothing was withheld.
+    assert_eq!(report.results.len(), 4);
+    assert!(!report.warnings.iter().any(|w| w.contains("do not match")));
 }
 
 #[test]

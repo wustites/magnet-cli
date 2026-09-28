@@ -6,11 +6,34 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Fixed
+
+- Apply the local relevance filter to every query and every provider instead of
+  only non-ASCII APIBay searches. Knaben, Bitsearch, Nyaa, and Sukebei all pad
+  queries they cannot match with their most popular rows, so a CJK search could
+  return a full page of unrelated titles; a default aggregate search for `子子西`
+  returned 100 rows of which none matched. Each drop is now reported per provider
+  on stderr, and `--no-title-filter` restores the previous behaviour.
+- Keep valid BtGoogle rows when one returned magnet is malformed; a single bad
+  row now costs only itself and reports `skipped N invalid result(s)` like every
+  other provider, instead of failing the whole source.
+- Decode BtGoogle HTML entities in one pass, so `&amp;lt;` no longer collapses
+  to `<`, and add the numeric `&` and `/` references that appear in magnets.
+- Find the BtGoogle publication date by value instead of assuming it is the
+  second `src` span, so an added or removed tracker label cannot shift it.
+- Set `default_search = false` on the APIBay entry in `config.example.toml` and
+  add the missing BtGoogle, DMHY, Anime Garden, and Mikan entries, so copying
+  the example no longer re-enables a source that default searches exclude.
+
 ### Changed
 
 - Archive APIBay from default aggregate searches; it remains available through
   `--source apibay` for explicit testing.
 - Enable BtGoogle in default aggregate searches.
+- Document that `default_search` defaults to `true`, and correct the default
+  provider list, provider counts, and source tree in both READMEs.
+- Promote `matches_query` from a private APIBay helper to `model::matches_query`,
+  and give the library a `SearchOptions::title_filter` switch.
 
 ## 0.2.1 - 2026-09-15
 

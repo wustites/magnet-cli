@@ -82,6 +82,7 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 | `--concurrency N` | `8` | 同时搜索的 Provider 数量，范围 1–64 |
 | `--deadline SECONDS` | 不限制 | 整次搜索的总截止时间（包含排队），范围 1–3600 秒 |
 | `--pages N` | `1` | 向支持分页的 Provider 请求的页数，范围 1–20 |
+| `--no-title-filter` | 关闭 | 保留标题缺少查询词的结果 |
 
 `--json`、`--jsonl`、`--magnet` 互斥。未选择时输出表格，未知的 seeders、大小和日期显示为 `?`，大小显示为十进制 GB，AGE 以天计。
 
@@ -98,7 +99,7 @@ magnet resolve 0000000000000000000000000000000000000000 --name "Example" --json
 
 ## 配置 Provider
 
-没有指定配置时，默认并发查询 Nyaa RSS、Knaben JSON、Sukebei RSS、APIBay 和 Bitsearch。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。
+没有指定配置时，默认并发查询 Nyaa RSS、Knaben JSON、Sukebei RSS、Bitsearch 和 BtGoogle。显式配置会**替换默认 Provider 列表**，不会追加到默认列表。内置共 9 个 Provider，其中这 5 个参与默认搜索，APIBay、DMHY、Anime Garden 和 Mikan 需通过 `--source` 按需启用。
 
 从 [config.example.toml](config.example.toml) 开始：
 
@@ -108,14 +109,14 @@ magnet --config config.toml providers --json
 magnet --config config.toml search "ubuntu" --json
 ```
 
-每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。`api_key_env` 仅适用于 Torznab 和 Bitsearch，且必须是合法的环境变量名。
+每个 `[[providers]]` 条目必须包含 `name`、`kind` 和 HTTP(S) `url`。`name` 必须非空且唯一，只能使用 ASCII 字母、数字、连字符或下划线。至少配置一个源；未知配置字段会被拒绝。`api_key_env` 仅适用于 Torznab 和 Bitsearch，且必须是合法的环境变量名。`default_search` 默认为 `true`，因此不希望参与默认聚合搜索的源必须显式写出 `default_search = false`。
 
 | `kind` | 请求方式 | 搜索行为 |
 | --- | --- | --- |
 | `nyaa` | HTTP GET RSS | 添加 `page=rss` 和搜索参数 `q` |
 | `sukebei` | HTTP GET RSS | 使用 Nyaa RSS 协议，添加 `page=rss` 和 `q` |
 | `knaben` | HTTP POST JSON | 向配置的 API URL 提交标题搜索，单次请求 150 条 |
-| `apibay` | HTTP GET JSON | 在 APIBay 的全部分类中搜索；读取 API 固定返回的结果集。对于非 ASCII 查询，CLI 会按标题在本地过滤 APIBay 的兜底结果 |
+| `apibay` | HTTP GET JSON | 在 APIBay 的全部分类中搜索；读取 API 固定返回的结果集。查询无法匹配时 APIBay 会返回兜底结果，由通用标题过滤剔除 |
 | `bitsearch` | HTTP GET JSON | 搜索 Bitsearch，每页 100 条；可选 API key 请求头 |
 | `dmhy` | HTTP GET RSS | 使用 DMHY 关键词 RSS 搜索；通过 `--source dmhy` 启用 |
 | `animegarden` | HTTP POST JSON | 使用 Anime Garden 全文动漫搜索；通过 `--source animegarden` 启用 |
@@ -245,6 +246,12 @@ url = "https://example.org/torrents.rss"
 
 聚合以 BTIH 为主键，不使用标题。base32 hash 会转换成十六进制；没有 hash 的结果即使同名也不会合并。同一 hash 的 sources、trackers 取并集，seeders、leechers 取最大报告值，不累加。
 
+### 标题过滤
+
+公网索引会把 CJK 查询按单字切分；当查询没有真实匹配时，它们会用最热门的结果填满整页。因此搜索会丢弃标题未包含查询词（按空白切分、忽略大小写、需全部命中）的结果。该过滤按 Provider 执行，在 magnet 规范化之后、去重之前，并且**对所有查询生效**，不限于非 ASCII 查询。每次丢弃都会在 stderr 输出 `NAME: dropped N result(s) that do not match the query`，过滤绝不会静默发生。
+
+匹配采用朴素的子串判断。它刻意保持可预测而非聪明，代价是当查询写法与标题不一致时可能被误杀：搜索 `C++` 会丢弃 `Microsoft Visual C+ Redistributable`，但保留 `Visual C++ [2005-2015]`。当查询的写法在标题中不会原样出现时，用 `--no-title-filter` 关闭过滤。
+
 标题采用配置顺序中最先出现的记录；大小、发布时间和详情链接优先保留该记录的已有值，缺失时从后续记录补齐。Provider 完成请求的先后顺序不影响这个优先级。无效或冲突的 hash 会被跳过并输出警告。
 
 重建 magnet 时保留 BTIH、显示名称和 tracker，其他 magnet 参数不保留。当前支持 BTIH/v1，不支持仅包含 v2 hash 的 magnet。
@@ -334,7 +341,7 @@ fi
 
 ## 当前限制
 
-默认同时执行 8 个 Provider（可配置为 1–64），每个源默认 15 秒超时，单次响应上限 8 MiB。更多源会排队；`--timeout` 覆盖一个 Provider 及其所有请求页，需要限制整条命令时使用 `--deadline`。
+默认最多同时执行 8 个 Provider（可配置为 1–64），每个源默认 15 秒超时，单次响应上限 8 MiB。更多源会排队；`--timeout` 覆盖一个 Provider 及其所有请求页，需要限制整条命令时使用 `--deadline`。
 
 每个源默认读取一页。`--pages` 可为 Knaben、Bitsearch 和 Torznab 请求最多 20 页；APIBay、Nyaa/Sukebei RSS 与通用 RSS/Atom 只请求一次。`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性、限流和结果完整性取决于上游服务。
 
@@ -352,8 +359,12 @@ src/
 ├── lib.rs              # library 模块导出
 └── providers/
     ├── mod.rs          # Provider trait、配置和 HTTP 请求封装
-    ├── feeds.rs        # Nyaa / Sukebei / Torznab / RSS
-    └── knaben.rs       # Knaben JSON API
+    ├── feeds.rs        # Nyaa / Sukebei / Torznab / RSS / DMHY / Mikan
+    ├── knaben.rs       # Knaben JSON API
+    ├── apibay.rs       # APIBay JSON API
+    ├── bitsearch.rs    # Bitsearch JSON API
+    ├── btgoogle.rs     # BtGoogle HTML 搜索端点
+    └── animegarden.rs  # Anime Garden JSON API
 ```
 
 crate 根目录重新导出 `Provider`、`Torrent`、`SearchOptions` 和两个搜索入口，可供新 Provider 或其他前端复用。基础自定义源只需实现 `Provider::search`，支持分页时可覆盖 `search_pages`；兼容旧行为时调用 `search`，需要并发、总截止时间和分页控制时调用 `search_with_options`。要让 CLI 的 TOML 配置支持新的 `kind`，还需更新 `Kind` 和 `HttpProvider` 分发逻辑。

@@ -27,21 +27,9 @@ pub async fn search(provider: &HttpProvider, query: &str) -> Result<Vec<Torrent>
         .append_pair("q", query)
         .append_pair("cat", "0");
     let bytes = body(provider.client.get(url)).await?;
-    let mut results = parse(&bytes, &provider.config.name)?;
-    // APIBay currently falls back to popular results for non-ASCII queries.
-    // Do not let those unrelated rows enter the aggregated result set.
-    if !query.is_ascii() {
-        results.retain(|torrent| matches_query(&torrent.title, query));
-    }
-    Ok(results)
-}
-
-fn matches_query(title: &str, query: &str) -> bool {
-    let title = title.to_lowercase();
-    query
-        .to_lowercase()
-        .split_whitespace()
-        .all(|term| title.contains(term))
+    // APIBay pads a query it cannot match with popular rows; the shared
+    // title filter in search_with_options drops them for every provider.
+    parse(&bytes, &provider.config.name)
 }
 
 fn parse(bytes: &[u8], source: &str) -> Result<Vec<Torrent>, ProviderError> {
@@ -83,6 +71,7 @@ mod tests {
 
     #[test]
     fn filters_apibay_fallback_rows_for_cjk_queries() {
+        use crate::model::matches_query;
         assert!(matches_query("台湾热门女神苏畅", "苏畅"));
         assert!(!matches_query("Spider-Man: Brand New Day", "苏畅"));
     }
