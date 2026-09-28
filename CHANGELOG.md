@@ -6,38 +6,52 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
-### Fixed
+## 0.3.0 - 2026-09-28
 
-- Update rustls to 0.23.45 for RUSTSEC-2026-0285, a TLS 1.3 issue where
-  handshake messages sent at the wrong encryption level were accepted.
-- Grant the RustSec audit job `checks: write`; `audit-check` reports through a
-  check run and could not create one with `contents: read` alone.
-- Apply the local relevance filter to every query and every provider instead of
-  only non-ASCII APIBay searches. Knaben, Bitsearch, Nyaa, and Sukebei all pad
-  queries they cannot match with their most popular rows, so a CJK search could
-  return a full page of unrelated titles; a default aggregate search for `子子西`
-  returned 100 rows of which none matched. Each drop is now reported per provider
-  on stderr, and `--no-title-filter` restores the previous behaviour.
-- Keep valid BtGoogle rows when one returned magnet is malformed; a single bad
-  row now costs only itself and reports `skipped N invalid result(s)` like every
-  other provider, instead of failing the whole source.
-- Decode BtGoogle HTML entities in one pass, so `&amp;lt;` no longer collapses
-  to `<`, and add the numeric `&` and `/` references that appear in magnets.
-- Find the BtGoogle publication date by value instead of assuming it is the
-  second `src` span, so an added or removed tracker label cannot shift it.
-- Set `default_search = false` on the APIBay entry in `config.example.toml` and
-  add the missing BtGoogle, DMHY, Anime Garden, and Mikan entries, so copying
-  the example no longer re-enables a source that default searches exclude.
+### Added
+
+- `--no-title-filter` opts out of the local relevance filter for queries whose
+  spelling never appears literally in the titles they should match.
+- `model::matches_query` exposes the title-match predicate that was previously a
+  private APIBay helper, and `SearchOptions::title_filter` lets library callers
+  control the behaviour.
 
 ### Changed
 
-- Archive APIBay from default aggregate searches; it remains available through
-  `--source apibay` for explicit testing.
-- Enable BtGoogle in default aggregate searches.
-- Document that `default_search` defaults to `true`, and correct the default
-  provider list, provider counts, and source tree in both READMEs.
-- Promote `matches_query` from a private APIBay helper to `model::matches_query`,
-  and give the library a `SearchOptions::title_filter` switch.
+- **Breaking:** results whose title does not contain every query term are now
+  dropped, for every query and every provider rather than only non-ASCII APIBay
+  searches. Knaben, Bitsearch, Nyaa, and Sukebei all pad a query they cannot
+  match with their most popular rows, so a default aggregate search for `子子西`
+  returned 100 rows of which none matched; it now returns 12 rows and all 12
+  match. Each drop is reported per provider on stderr, so nothing is lost
+  silently. Ordinary queries are unaffected: `ubuntu`, `big buck bunny`,
+  `ubuntu 24.04`, `SPY x FAMILY`, `苏畅`, and `1080p` all keep a 100% survival
+  rate.
+- Enable BtGoogle in default aggregate searches, and archive APIBay from them;
+  APIBay remains available through `--source apibay`.
+- Document that `default_search` defaults to `true`, which is why an example
+  config has to set it to `false` explicitly to exclude a source.
+
+### Fixed
+
+- Update rustls to 0.23.45 for RUSTSEC-2026-0285, where a TLS 1.3 peer could
+  send handshake messages at the wrong encryption level and rustls accepted them
+  instead of alerting as RFC 8446 section 5.1 requires.
+- Keep valid BtGoogle rows when one returned magnet is malformed. A single bad
+  row now costs only itself and reports `skipped N invalid result(s)` like every
+  other provider, instead of failing the whole source.
+- Decode BtGoogle HTML entities in one pass, so `&amp;lt;` no longer collapses to
+  `<`, and add the numeric `&` and `/` references that appear inside magnets.
+- Find the BtGoogle publication date by value instead of assuming it is the
+  second `src` span, so an added or removed tracker label cannot shift it.
+- Set `default_search = false` on the APIBay entry in `config.example.toml` and
+  add the missing BtGoogle, DMHY, Anime Garden, and Mikan entries, so copying the
+  example no longer re-enables a source that default searches exclude.
+- Grant the RustSec audit job `checks: write`; `audit-check` reports through a
+  check run and could not create one with `contents: read` alone.
+- Correct the default provider list, the provider count, the source tree, and
+  the "no HTML scraping" claim in both READMEs, and add the missing 0.2.1
+  changelog link.
 
 ## 0.2.1 - 2026-09-15
 
@@ -77,6 +91,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - JSON, JSONL, magnet-only, and human-readable output.
 - Atomic last-search snapshots with local `get` and `resolve` commands.
 
-[Unreleased]: https://github.com/wustites/magnet-cli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/wustites/magnet-cli/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/wustites/magnet-cli/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/wustites/magnet-cli/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wustites/magnet-cli/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/wustites/magnet-cli/releases/tag/v0.1.0

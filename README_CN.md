@@ -4,7 +4,7 @@
 
 用 Rust 编写的多 Provider torrent 搜索 CLI，同时提供可复用的 library。支持并发搜索、BTIH infohash 去重、tracker 合并，以及适合脚本和 agent 调用的 JSON 输出。
 
-版本发布在 [crates.io](https://crates.io/crates/magnet-cli)。0.2.0 内置 Nyaa、Knaben、Sukebei（Nyaa NSFW）、APIBay 和 Bitsearch，可配置 Torznab 与 RSS/Atom。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
+版本发布在 [crates.io](https://crates.io/crates/magnet-cli)。内置 Provider 为 Nyaa、Knaben、Sukebei（Nyaa NSFW）、Bitsearch、BtGoogle、APIBay、DMHY、Anime Garden 和 Mikan Project，另可配置 Torznab 与 RSS/Atom。搜索结果可以交给其他 BitTorrent 客户端；本项目不包含下载器、TUI 或 MCP server。
 
 ## 安装与快速开始
 
@@ -345,7 +345,7 @@ fi
 
 每个源默认读取一页。`--pages` 可为 Knaben、Bitsearch 和 Torznab 请求最多 20 页；APIBay、Nyaa/Sukebei RSS 与通用 RSS/Atom 只请求一次。`--limit` 只限制最终输出数量，不保证能搜满指定条数。公网源的可用性、限流和结果完整性取决于上游服务。
 
-当前未实现 TUI、MCP、HTML 抓取、DHT 查询或下载功能。
+BtGoogle 是唯一一个通过抓取 HTML 而非调用文档化 API 的 Provider，因此该页面结构变化时它最可能失效。当前未实现 TUI、MCP、DHT 查询或下载功能。
 
 ## 开发与扩展
 

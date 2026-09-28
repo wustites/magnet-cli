@@ -4,7 +4,7 @@
 
 A multi-provider torrent search CLI written in Rust, with a reusable library. Supports concurrent search, BTIH infohash dedup, tracker merging, and JSON output suited for scripts and agents.
 
-Releases are published on [crates.io](https://crates.io/crates/magnet-cli). Version 0.2.0 includes built-in Nyaa, Knaben, Sukebei (Nyaa NSFW), APIBay, and Bitsearch, plus configurable Torznab and RSS/Atom. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
+Releases are published on [crates.io](https://crates.io/crates/magnet-cli). Built-in providers are Nyaa, Knaben, Sukebei (Nyaa NSFW), Bitsearch, BtGoogle, APIBay, DMHY, Anime Garden, and Mikan Project, plus configurable Torznab and RSS/Atom. Hand results off to any BitTorrent client; this project has no downloader, TUI, or MCP server.
 
 ## Install & Quick Start
 
@@ -332,7 +332,7 @@ Up to 8 providers run concurrently (configurable from 1 to 64), with a 15 s defa
 
 Each source reads one page by default. `--pages` can request up to 20 pages from Knaben, Bitsearch, and Torznab; APIBay, Nyaa/Sukebei RSS, and generic RSS/Atom feeds are fetched once. `--limit` caps final output only and may return fewer rows than asked. Public source availability, rate limits, and completeness depend on upstream services.
 
-No TUI, MCP, HTML scraping, DHT lookup, or downloads.
+BtGoogle is the one provider read by scraping HTML rather than a documented API, so it is the most likely to break when that page changes. No TUI, MCP, DHT lookup, or downloads.
 
 ## Develop & Extend
 
