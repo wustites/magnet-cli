@@ -67,6 +67,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # audit-check reports through a check run, which needs write access here.
+      checks: write
 
     steps:
       - name: Checkout

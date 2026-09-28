@@ -8,6 +8,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Update rustls to 0.23.45 for RUSTSEC-2026-0285, a TLS 1.3 issue where
+  handshake messages sent at the wrong encryption level were accepted.
+- Grant the RustSec audit job `checks: write`; `audit-check` reports through a
+  check run and could not create one with `contents: read` alone.
 - Apply the local relevance filter to every query and every provider instead of
   only non-ASCII APIBay searches. Knaben, Bitsearch, Nyaa, and Sukebei all pad
   queries they cannot match with their most popular rows, so a CJK search could
