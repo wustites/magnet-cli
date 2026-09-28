@@ -34,7 +34,9 @@ sudo docker compose restart bitmagnet
 curl http://127.0.0.1:3333/status
 ```
 
-数据库、配置的备份策略及完整恢复步骤见[数据备份与恢复](bitmagnet-backup.md)。
+数据库、配置的备份策略及完整恢复步骤见[数据备份与恢复](bitmagnet-backup.md)。若要把封存的索引重新用起来，该文档末尾的「从留存备份重新部署」一节给出从云盘取回到 `magnet search` 可用的完整路径。
+
+留存的那份备份是 `pg_dump -Fc` 逻辑备份，**不锁定 CPU 架构**，将来在 `x86-64` 机器上恢复同样可行。物理备份（`pg_basebackup`）才与架构和 PostgreSQL 主版本绑定；两种方式的区别与外部备份的格式判定方法见同一文档的「备份与架构的关系」一节。
 
 ## Caddy 公网查询入口（已封存）
 
@@ -122,18 +124,37 @@ done
 
 ### 命中不等于字面包含
 
-bitmagnet 的 Torznab `q` 走全文检索，不是子串匹配，`magnet-cli` 也不会对 torznab 结果做本地标题过滤。索引（`torrent_contents.tsv`）由种子名、**文件路径**和关联的元数据（TMDb 等）构建，规则：
+bitmagnet 的 Torznab `q` 走全文检索，不是子串匹配。索引（`torrent_contents.tsv`）由种子名、**文件路径**和关联的元数据（TMDb 等）构建，规则：
 
 - 非 ASCII 字符按 unidecode 转写成拼音并逐字成词：`繁體中文` → `'Fan' <-> 'Ti' <-> 'Zhong' <-> 'Wen'`，因此繁体与简体互通，`繁體中文` 会命中简体标题《三国群英传7绿色免安装繁体中文版》。
 - 标点分词后用 AND 连接：`jufe-016` → `'jufe' & '016'`，命中文件路径为 `JUFE-569-uncensored-.mp4` 和 `GENU-016-uncensored-.mp4` 的种子（`5d73fd23f3071e3c186683e3f0d98094ca2a696`，种子名是「12月22日-精选高清无码（破坏版）一百四十四合集」，两个文件名都不出现在种子名里）。
 - 文件名参与检索：`陈妮妮` 在 12 条结果里有 11 条的种子名不含该词，这些种子是靠文件列表命中的，例如种子 `More girls photos 更多更好的寫真資源。【TG：@vv9900pp】/【微密圈】精选系列02。鱼神+黑饱宝+葱油饼er+妮是老虎-陈妮妮UNI。網紅VIP私密寫真。共289套.torrent` 出现在某韩国 OnlyFans 合集的文件路径里。
 - 元数据参与检索：`東京` → `'Dong' <-> 'Jing'` 命中 `Tokyo.Drifter.1966.Criterion.1080p.BluRay.x265.HEVC.AAC-SARTRE`，靠的是该影片的原始标题；该条目做种数低，在 09-21 已落到 top-100 之外，需要 `offset=500` 才能取到（见上节的分页脚本）。
 
-需要严格字面匹配时自行过滤：
+### 标题过滤对 bitmagnet 的影响
+
+自 0.3.0 起，`magnet` 会对**所有** Provider（含 torznab）默认启用本地标题过滤：丢弃标题未包含查询全部词的行，丢弃数量按 Provider 打在 stderr 上。这一改动的原因见主 README「标题过滤」一节 —— 公网索引在查询无匹配时会用热门结果填满整页。
+
+对 bitmagnet 这道过滤**建议关闭**，因为它的全文检索匹配文件路径和 TMDb 元数据，上面那些「命中但种子名不含关键词」的条目往往正是目标资源。
+
+「7 条 / 100 条」这个比例来自封存时对真实 210 万库的一次实测（见上文关键词表）；过滤行为本身是用桩服务器复现验证的 —— torznab 确实走与其他 Provider 相同的过滤路径，6 条桩数据里 5 条被丢弃并报告：
+
+```bash
+magnet search '繁體中文' --config ~/.config/magnet-cli/bitmagnet.toml --json --limit 100
+# 默认：只返回标题字面含「繁體中文」的 7 条
+magnet search '繁體中文' --config ~/.config/magnet-cli/bitmagnet.toml --json --limit 100 \
+  --no-title-filter
+# 关闭过滤：返回全部 100 条全文命中
+```
+
+按上文 13 个关键词的实测字面命中率，`苏畅`（77/100）、`東京`（27/100）、`繁體中文`（7/100）、`陈妮妮`（1/12）、`jufe-016`（1/12）在开着过滤时都会被砍到只剩个位数。`陈妮妮` 和 `jufe-016` 尤其极端 —— 它们几乎全靠文件名命中，开了过滤基本等于查不到。
+
+需要统计字面命中数时，默认过滤已经做了这件事，jq 只需在关闭过滤后使用：
 
 ```bash
 magnet search '繁體中文' --config ~/.config/magnet-cli/bitmagnet.toml --json --limit 100 \
-  | jq '[.[] | select(.title | contains("繁體中文"))] | length'   # 100 条结果中字面命中 7 条
+  --no-title-filter \
+  | jq '[.[] | select(.title | contains("繁體中文"))] | length'
 ```
 
 字面命中率随索引增长而提高，早期（09-16，库内 33 万）`繁體中文` 是 0/5、`陈妮妮` 是 0/1、`jufe-016` 是 0/1；09-21（库内 210 万）三者分别为 7/100、1/12、1/12，即「命中但不含关键词」仍普遍存在（`陈妮妮` 12 条里 11 条属于这种情况），但已不是绝对规律。CJK 多字短语要求整串拼音相邻，命中难度最高：`可笑的单纯`、`无理的前进` 至今均为 0 条。

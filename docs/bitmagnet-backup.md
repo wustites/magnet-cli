@@ -8,6 +8,8 @@
 
 本文适用于项目当前的 Docker Compose 部署：bitmagnet 位于 `/opt/bitmagnet`，PostgreSQL 16 容器名为 `bitmagnet-postgres`，数据库名为 `bitmagnet`，超级用户名为 `postgres`。**不存在名为 `bitmagnet` 的角色**，`pg_dump -U bitmagnet` 会以 `FATAL: role "bitmagnet" does not exist` 失败——数据库名和角色名在这里不是一回事。
 
+> **重新部署**：如果目的是把封存的索引重新用起来，直接跳到本文末尾的「从留存备份重新部署」一节，那里是从云盘取回到 `magnet search` 可用的完整路径。本文其余部分是背景与原理，不需要通读。
+
 bitmagnet 的主要持久化数据分为两部分：
 
 - PostgreSQL 数据库：torrent、文件、内容元数据和处理队列。
@@ -48,6 +50,44 @@ bitmagnet 的主要持久化数据分为两部分：
 - 迁移、跨 PostgreSQL 版本、需要单表恢复（`pg_restore -t`）：逻辑备份。
 - 灾难恢复、要求分钟级恢复：物理备份，但体积是逻辑备份的约 10 倍，且只能原样恢复到兼容版本的 PostgreSQL。
 - 两者不互斥。建议每日逻辑备份，每周或每次升级前追加一次物理备份。
+
+## 备份与架构的关系
+
+**逻辑备份与架构无关，物理备份与架构绑定。** PostgreSQL 官方文档（[25.1 SQL Dump](https://www.postgresql.org/docs/current/backup-dump.html)）的表述：
+
+> pg_dump's output can generally be re-loaded into newer versions of PostgreSQL, whereas file-level backups and continuous archiving are both extremely server-version-specific. pg_dump is also **the only method that will work when transferring a database to a different machine architecture**.
+
+| 备份类型 | 跨 CPU 架构 | 跨 PostgreSQL 主版本 | 本部署实测体积 |
+| --- | --- | --- | ---: |
+| `pg_dump -Fc` / `-Fd`（逻辑） | 可以 | 一般可以 | 1.48 GiB |
+| `pg_basebackup`（物理） | 不可以 | 需要 `pg_upgrade` | 15.4 GiB |
+
+物理备份不跨架构的原因在数据目录的二进制布局：`wal_segment_size`（通常 16 MB）与 `block_size`（通常 8 KB）是编译期常量，跨字节序则整体不可用。需要注意 `aarch64` 与 `x86_64` 同为小端，因此这两者之间的字节序恰好不构成障碍；真正的限制是官方不承诺跨架构支持，以及上述编译期常量在不同构建下可能不同。
+
+**这对当前这份备份的意义**：留存的唯一副本是 `pg_dump -Fc --compress=6` 逻辑备份，因此它不锁定在本机的 `aarch64` 上，将来在 `x86-64` 机器上恢复同样可行。在只剩一份副本的情况下，这个性质比恢复速度更重要。若当时只留了物理备份，就必须回到同架构同版本的 PostgreSQL 上才能用。
+
+### 拿到外部备份时先判定格式
+
+如果从别处取得一份备份（社区分享、迁移等），**先判定逻辑还是物理，再决定要不要完整下载**：
+
+| 魔数 / 形态 | 判定 | 后果 |
+| --- | --- | --- |
+| `PGDMP` 开头 | `pg_dump -Fc` 逻辑备份 | 架构无关，可移植 |
+| 解包后是大量 `.dat.*` | `pg_dump -Fd` 目录格式 | 架构无关，可移植 |
+| `ustar` / gzip 开头 | 裸数据目录归档 | 只能同架构同版本恢复 |
+| 单个 `pgdata` 目录打包 | 同上 | 同上 |
+
+```bash
+# 只取归档内第一个成员的前 16 字节，不必下完整个包
+unzip -p archive.zip '*/dump' 2>/dev/null | head -c 16 | xxd
+```
+
+逻辑备份还要额外确认两件事，它们与架构无关但同样会卡住恢复：
+
+1. **PostgreSQL 版本** —— 用 `pg_restore --list` 查看，能看到建表语句和 goose 迁移记录。
+2. **bitmagnet 的 schema 版本** —— bitmagnet 用 goose 迁移（当前为 version 20）。来自其他 bitmagnet 版本的 dump 几乎必然 schema 不同，直接 `pg_restore` 会字段错位或迁移对不上。官方为此提供了合并流程，见 [Backup, Restore & Merge](https://bitmagnet.io/guides/backup-restore-merge.html) —— 合并不同来源的库要走该文档定义的步骤，不是直接恢复。
+
+另外注意体积：按本部署的实测比例（16.0 GB 库 → 1.48 GiB dump，约 10.9:1），一份 20 GiB 量级的压缩 dump 解压后可能对应 200 GiB 以上的数据库。宿主机余量要先算清楚。
 
 ## 逻辑备份
 
@@ -308,3 +348,106 @@ sudo find /var/backups/bitmagnet -mindepth 1 -maxdepth 1 \
 - 只有空间真正回收之后，备份体积才会下降，所以清理完成后再做一次备份，而不是指望 `DELETE` 立刻缩小备份。
 
 封存前的部署未配置归档/时间线相关清理，`archive_mode = off`、`max_wal_senders = 10`、`pg_wal` 占用约 480 MB，属于正常水平。
+
+## 从留存备份重新部署
+
+本节是封存之后新增的操作路径，把散落在上文的内容串成一条可执行链路。目标：把云盘上那份逻辑备份恢复成可查询的 bitmagnet，再接上 `magnet-cli` 产出磁链。
+
+前置条件与工作量：
+
+| 项目 | 值 |
+| --- | --- |
+| 备份体积 | 1.48 GiB（`bitmagnet.dump`） |
+| 恢复耗时 | 约 23 min（`pg_restore -j 4`，含索引重建） |
+| 恢复后库容 | 约 16 GB，另需索引重建的临时空间 |
+| 恢复后 torrent 数 | 2,103,763（`database-info.txt` 可核对） |
+
+**先确认磁盘余量**。恢复期间需要同时容纳 dump、库数据、索引重建产物与 WAL，实测库容会涨到 16 GB 以上：
+
+```bash
+df -h /var/lib/docker
+```
+
+余量不足时先清理，不要在恢复中途失败——`pg_restore --exit-on-error` 留下的半成品库缺索引缺外键，只能重来。
+
+### 1. 取回备份
+
+云盘挂载的随机读很慢，先整个拷回本地磁盘：
+
+```bash
+set -euo pipefail
+sudo install -d -m 0700 /var/backups/bitmagnet/20260921T074748Z
+rclone copy 'pikpak:Backup/bitmagnet/20260921T074748Z/' \
+  /var/backups/bitmagnet/20260921T074748Z/
+```
+
+### 2. 校验
+
+校验和与可解析性两项都要过。逻辑备份的 `.dump` 是 `pg_dump -Fc` 格式，可直接用 `pg_restore --list` 验证结构：
+
+```bash
+backup_dir=/var/backups/bitmagnet/20260921T074748Z
+sudo sh -c "cd '$backup_dir' && sha256sum --check SHA256SUMS"
+sudo cat "$backup_dir/bitmagnet.dump" \
+  | sudo docker run --rm -i postgres:16-alpine \
+      pg_restore --list >/dev/null && echo "dump 可解析"
+```
+
+第二条不需要先起数据库容器，`postgres:16-alpine` 镜像自带 `pg_restore`。若这里报 `end of file`，通常是本文「备份中的陷阱」第 1 条的 `-t` 伪终端问题导致的损坏。
+
+### 3. 恢复
+
+按上文「逻辑备份 → 恢复」执行。`docker-compose.yml` 一并从 `config.tar.gz` 取回，它记录了 `POSTGRES_HOST` 等连接参数的来源：
+
+```bash
+sudo tar -C /opt/bitmagnet -xzf "$backup_dir/config.tar.gz"
+```
+
+恢复完成后校验计数，应与 `database-info.txt` 记录一致：
+
+```bash
+sudo docker exec bitmagnet-postgres \
+  psql -U postgres -d bitmagnet -c "SELECT count(*) AS torrents FROM torrents;"
+```
+
+### 4. 启动 bitmagnet 并确认接口
+
+```bash
+cd /opt/bitmagnet
+sudo docker compose up -d
+sleep 20
+curl --fail http://127.0.0.1:3333/status
+```
+
+确认数据真的可被应用读取，而不只是库里有行：
+
+```bash
+curl -sG 'http://127.0.0.1:3333/torznab/api' \
+  --data-urlencode 't=search' --data-urlencode 'q=ubuntu' | grep -c '<item>'
+```
+
+正常应返回接近 100（Torznab 单次上限）。若为 0，先看 `sudo docker compose logs --tail=100 bitmagnet`——刚恢复时队列需要消化，`bitmagnet` 的 UI 列表有约 10 分钟缓存 TTL。
+
+### 5. 接上 magnet-cli
+
+Torznab 接口不需要 API Key：
+
+```bash
+install -d -m 0755 ~/.config/magnet-cli
+cat > ~/.config/magnet-cli/bitmagnet.toml <<'TOML'
+[[providers]]
+name = "bitmagnet"
+kind = "torznab"
+url = "http://127.0.0.1:3333/torznab/api"
+TOML
+
+magnet search '流浪地球' --config ~/.config/magnet-cli/bitmagnet.toml --limit 20
+```
+
+`--config` 会**替换**内置 Provider 列表。要与 Nyaa、Knaben 等一起搜，需在同一份配置里补上这些条目（见主 README「Configuring Providers」）。
+
+**建议加 `--no-title-filter`**。`magnet` 自 0.3.0 起默认对所有 Provider 做本地标题过滤，而 bitmagnet 走全文检索、匹配文件路径和 TMDb 元数据，种子名常不含查询词。开着过滤 `陈妮妮`、`jufe-016` 这类靠文件名命中的查询基本查不到。详见集成文档的「标题过滤对 bitmagnet 的影响」一节。
+
+### 6. 恢复演练（可选但推荐）
+
+逻辑恢复约 23 min，物理备份只要 17 s。上文「恢复演练」一节有完整的一次性容器流程，建议在正式启用前先演练一次，确认 `pg_index` 无 `indisvalid`、外键 19 个、goose version 20。
