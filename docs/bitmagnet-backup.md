@@ -444,7 +444,7 @@ TOML
 magnet search '流浪地球' --config ~/.config/magnet-cli/bitmagnet.toml --limit 20
 ```
 
-`--config` 会**替换**内置 Provider 列表。要与 Nyaa、Knaben 等一起搜，需在同一份配置里补上这些条目（见主 README「Configuring Providers」）。
+`--config` 会**替换**内置 Provider 列表。要与 Nyaa、Knaben 等一起搜，需在同一份配置里补上这些条目（见 [Provider 配置](providers.zh-CN.md)）。
 
 **建议加 `--no-title-filter`**。`magnet` 自 0.3.0 起默认对所有 Provider 做本地标题过滤，而 bitmagnet 走全文检索、匹配文件路径和 TMDb 元数据，种子名常不含查询词。开着过滤 `陈妮妮`、`jufe-016` 这类靠文件名命中的查询基本查不到。详见集成文档的「标题过滤对 bitmagnet 的影响」一节。
 

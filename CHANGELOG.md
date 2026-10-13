@@ -6,6 +6,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+- Reorganize the documentation: add a `docs/` index, split the provider and
+  scripting guides out of the READMEs into dedicated English/Chinese pages, and
+  add a bilingual usage tutorial. The root READMEs now link to the new guides
+  instead of carrying the full reference.
+
 ## 0.3.0 - 2026-09-28
 
 ### Added
