@@ -6,6 +6,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Added
+
+- Document an fzf integration in the scripting guide: build tab-separated rows
+  from `--json`, hide the magnet from the picker, and extract the selected
+  magnet, with a reusable `magnet-pick` shell function and a non-interactive
+  `fzf --filter` variant.
+
 ### Changed
 
 - Reorganize the documentation: add a `docs/` index, split the provider and

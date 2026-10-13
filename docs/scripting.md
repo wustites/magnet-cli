@@ -166,3 +166,67 @@ fi
 ```
 
 `pikpaktui offline` takes `--to` for the target dir, `--name` for the task name, and `--dry-run` to preview; e.g. swap the last call for `pikpaktui offline "$uri" --dry-run`. Accounts, target dirs, and offline tasks belong to `pikpaktui`; `magnet` handles search and magnet output.
+
+## Piping into fzf
+
+Install `jq` and `fzf`. Turn each result into a tab-separated `seeders<TAB>size<TAB>title<TAB>magnet` row, let fzf show only the first three columns, then `cut -f4` the selected row's magnet:
+
+```bash
+magnet search "ubuntu" --json \
+  | jq -r '.[] | select(.magnet != null)
+      | [ (.seeders // "-" | tostring),
+          (if .size then ((.size / 1000000000 * 100 | round) / 100 | tostring) + " GB" else "?" end),
+          (.title | gsub("[\\t\\n\\r]"; " ")),
+          .magnet ]
+      | @tsv' \
+  | fzf --delimiter='\t' --with-nth=1,2,3 --nth=3 --reverse \
+        --preview 'printf "%s\n" {4}' --preview-window=down:3:wrap \
+  | cut -f4
+```
+
+- `@tsv` splits fields on tabs; `gsub` strips tabs and newlines from titles so they can't break the columns.
+- `--with-nth=1,2,3` shows only seeders, size, and title; the magnet stays as a hidden 4th column and still travels with the row.
+- `--nth=3` restricts fuzzy matching to the title; drop it to match all four fields.
+- `--preview` uses fzf's `{4}` placeholder (which fzf single-quotes for you) to reveal the hidden full magnet.
+- `cut -f4` prints the selected row's magnet. Because `select(.magnet != null)` ran first, a selected row always has one.
+
+Wrap it in a reusable function:
+
+```bash
+magnet-pick() {
+  magnet search "$*" --json \
+    | jq -r '.[] | select(.magnet != null)
+        | [ (.seeders // "-" | tostring),
+            (if .size then ((.size / 1000000000 * 100 | round) / 100 | tostring) + " GB" else "?" end),
+            (.title | gsub("[\\t\\n\\r]"; " ")),
+            .magnet ]
+        | @tsv' \
+    | fzf --delimiter='\t' --with-nth=1,2,3 --nth=3 --reverse \
+          --prompt='torrent> ' --preview 'printf "%s\n" {4}' --preview-window=down:3:wrap \
+    | cut -f4
+}
+```
+
+```bash
+# Pick interactively, then print the magnet
+magnet-pick "ubuntu"
+
+# Pick interactively, then create a PikPak cloud task
+uri=$(magnet-pick "odv-534") && [ -n "$uri" ] && pikpaktui offline "$uri"
+```
+
+In a script with no terminal, `fzf --filter` performs the same fuzzy match non-interactively:
+
+```bash
+magnet search "ubuntu" --json \
+  | jq -r '.[] | select(.magnet != null)
+      | [ (.seeders // "-" | tostring),
+          (if .size then ((.size / 1000000000 * 100 | round) / 100 | tostring) + " GB" else "?" end),
+          (.title | gsub("[\\t\\n\\r]"; " ")),
+          .magnet ]
+      | @tsv' \
+  | fzf --delimiter='\t' --with-nth=1,2,3 --nth=3 --filter='22.04' \
+  | cut -f4
+```
+
+Note: `magnet-pick` runs a fresh search and rewrites the snapshot every time. To pick several times from one result set, search once and pin the snapshot with `MAGNET_CACHE`, or use `fzf --multi` to select multiple rows at once (then `cut -f4` prints one magnet per line).

@@ -166,3 +166,67 @@ fi
 ```
 
 `pikpaktui offline` 支持 `--to` 指定目标目录、`--name` 指定任务名称，以及 `--dry-run` 预览而不创建任务；例如将最后一行调用改为 `pikpaktui offline "$uri" --dry-run`。账号、目标目录和离线任务均由 `pikpaktui` 管理，`magnet` 负责搜索和输出 magnet。
+
+## 与 fzf 集成
+
+安装 `jq` 和 `fzf`。把每条结果拼成「seeders<TAB>大小<TAB>标题<TAB>magnet」的制表符分隔行，交给 fzf 只显示前三列，最后 `cut -f4` 取出选中行的磁链：
+
+```bash
+magnet search "ubuntu" --json \
+  | jq -r '.[] | select(.magnet != null)
+      | [ (.seeders // "-" | tostring),
+          (if .size then ((.size / 1000000000 * 100 | round) / 100 | tostring) + " GB" else "?" end),
+          (.title | gsub("[\\t\\n\\r]"; " ")),
+          .magnet ]
+      | @tsv' \
+  | fzf --delimiter='\t' --with-nth=1,2,3 --nth=3 --reverse \
+        --preview 'printf "%s\n" {4}' --preview-window=down:3:wrap \
+  | cut -f4
+```
+
+- `@tsv` 用制表符分隔字段；`gsub` 去掉标题里的制表符与换行，避免破坏列结构。
+- `--with-nth=1,2,3` 只显示 seeders、大小和标题；magnet 作为隐藏的第 4 列仍会随整行返回。
+- `--nth=3` 让模糊匹配只针对标题；去掉它则四列都参与匹配。
+- `--preview` 用 fzf 的 `{4}` 占位符（fzf 会自动单引号转义）显示被隐藏的完整 magnet。
+- `cut -f4` 取出选中行的 magnet。因为已用 `select(.magnet != null)` 提前排除，选中行一定有磁链。
+
+封装成可复用函数：
+
+```bash
+magnet-pick() {
+  magnet search "$*" --json \
+    | jq -r '.[] | select(.magnet != null)
+        | [ (.seeders // "-" | tostring),
+            (if .size then ((.size / 1000000000 * 100 | round) / 100 | tostring) + " GB" else "?" end),
+            (.title | gsub("[\\t\\n\\r]"; " ")),
+            .magnet ]
+        | @tsv' \
+    | fzf --delimiter='\t' --with-nth=1,2,3 --nth=3 --reverse \
+          --prompt='torrent> ' --preview 'printf "%s\n" {4}' --preview-window=down:3:wrap \
+    | cut -f4
+}
+```
+
+```bash
+# 交互选择后在终端打印 magnet
+magnet-pick "ubuntu"
+
+# 交互选择后直接创建 PikPak 离线任务
+uri=$(magnet-pick "odv-534") && [ -n "$uri" ] && pikpaktui offline "$uri"
+```
+
+在无终端的脚本里，可以用 `fzf --filter` 做非交互的模糊匹配，行为与交互式选择一致：
+
+```bash
+magnet search "ubuntu" --json \
+  | jq -r '.[] | select(.magnet != null)
+      | [ (.seeders // "-" | tostring),
+          (if .size then ((.size / 1000000000 * 100 | round) / 100 | tostring) + " GB" else "?" end),
+          (.title | gsub("[\\t\\n\\r]"; " ")),
+          .magnet ]
+      | @tsv' \
+  | fzf --delimiter='\t' --with-nth=1,2,3 --nth=3 --filter='22.04' \
+  | cut -f4
+```
+
+提示：`magnet-pick` 每次都会重新发起搜索并重写快照。若要在同一份结果上多次挑选，先搜索一次再用 `MAGNET_CACHE` 固定快照，或用 `fzf --multi` 一次选中多条（此时 `cut -f4` 会输出多行 magnet）。
