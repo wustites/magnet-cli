@@ -6,15 +6,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
-### Added
-
-- Document an fzf integration in the scripting guide: build tab-separated rows
-  from `--json`, hide the magnet from the picker, and extract the selected
-  magnet, with a reusable `magnet-pick` shell function and a non-interactive
-  `fzf --filter` variant.
-
 ### Changed
 
+- Move the bilingual fzf integration examples to the
+  [Agent tool index](https://github.com/ZeroMarker/agent/tree/main/cli-tools/magnet-cli),
+  keeping links in the scripting guides.
 - Reorganize the documentation: add a `docs/` index, split the provider and
   scripting guides out of the READMEs into dedicated English/Chinese pages, and
   add a bilingual usage tutorial. The root READMEs now link to the new guides
